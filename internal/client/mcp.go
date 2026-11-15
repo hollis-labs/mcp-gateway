@@ -63,7 +63,7 @@ func (c *Client) ConnectMCP(ctx context.Context, opts MCPOptions) (*mcpsdk.Clien
 	// SDK retries resume SSE via GET/Last-Event-ID; they never resend POST.
 	// No OAuth handler is installed (the only SDK path that re-POSTs).
 	transport := &mcpsdk.StreamableClientTransport{Endpoint: endpoint, HTTPClient: &httpClient, MaxRetries: 1}
-	return mcpsdk.NewClient(&mcpsdk.Implementation{Name: "tether-daemon-client", Version: "1"}, opts.ClientOptions).Connect(ctx, mcpObservedTransport{Transport: transport, connected: opts.OnTransportConnected}, nil)
+	return mcpsdk.NewClient(&mcpsdk.Implementation{Name: "mcp-gateway-client", Version: "1"}, opts.ClientOptions).Connect(ctx, mcpObservedTransport{Transport: transport, connected: opts.OnTransportConnected}, nil)
 }
 
 type mcpObservedTransport struct {
@@ -111,10 +111,7 @@ func (t mcpErrorTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 		}
 	}
 	if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
-		var credential *credentialError
-		if !errors.As(err, &credential) {
-			err = fmt.Errorf("%w: %w", ErrDaemonUnreachable, err)
-		}
+		err = fmt.Errorf("%w: %w", ErrDaemonUnreachable, err)
 	}
 	return response, err
 }
@@ -131,7 +128,7 @@ func (c *Client) ProbeMCP(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("MCP endpoint unreachable")
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var body struct {
 		Error struct {
 			Code string `json:"code"`

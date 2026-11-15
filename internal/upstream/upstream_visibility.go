@@ -1,23 +1,6 @@
-package mcpadapter
+package upstream
 
 import "fmt"
-
-func unavailableServers(statuses []ServerStatus) []ServerStatus {
-	out := make([]ServerStatus, 0)
-	for _, s := range statuses {
-		if s.Status != "connected" {
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
-func (a *Adapter) upstreamStatus() []ServerStatus {
-	if a.upstreams == nil {
-		return nil
-	}
-	return a.upstreams.StatusSummary()
-}
 
 func (p *ClientPool) unavailableError(id string, client upstreamClient) error {
 	p.mu.Lock()
@@ -28,7 +11,7 @@ func (p *ClientPool) unavailableError(id string, client upstreamClient) error {
 		if s != nil {
 			state = s.state
 		}
-		return fmt.Errorf("upstream %q unavailable (%s); request was not sent; inspect tether_gateway_status", id, state)
+		return fmt.Errorf("upstream %q unavailable (%s); request was not sent; inspect mcp_gateway_status", id, state)
 	}
 	return nil
 }

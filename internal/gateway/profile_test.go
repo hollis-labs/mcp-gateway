@@ -46,7 +46,7 @@ func TestProfileFilteringBoundaryAndOrdering(t *testing.T) {
 		if err != nil || out.Items[0].Error == "" || out.Items[0].InputSchema != nil {
 			t.Fatalf("hydrated excluded %s", name)
 		}
-		if _, err := service.Call(context.Background(), name, nil, nil); err == nil {
+		if _, checkErr := service.Call(context.Background(), name, nil, nil); checkErr == nil {
 			t.Fatalf("dispatched excluded %s", name)
 		}
 	}
@@ -69,7 +69,7 @@ func TestProfileSelectionAndValidation(t *testing.T) {
 		t.Fatalf("selection=%+v %v", selection, err)
 	}
 	for _, in := range []ProfileInputs{{Explicit: []Selector{{"", "argument"}}}, {Environment: ptr("bogus")}, {Explicit: []Selector{{"reader", "a"}, {"writer", "b"}}}} {
-		if _, err := ResolveProfile(config, in); err == nil {
+		if _, checkErr := ResolveProfile(config, in); checkErr == nil {
 			t.Fatal("invalid selection accepted")
 		}
 	}
@@ -97,7 +97,7 @@ func TestProfileOriginsIntersectAndFailClosed(t *testing.T) {
 		}
 	}
 	for _, bad := range []string{"bogus", "disabled"} {
-		if _, err := SelectOrigins(known, nil, &Profile{Servers: []string{bad}}); err == nil {
+		if _, checkErr := SelectOrigins(known, nil, &Profile{Servers: []string{bad}}); checkErr == nil {
 			t.Fatalf("accepted %s", bad)
 		}
 	}
@@ -120,7 +120,7 @@ func TestProfileCursorBindingAndPinValidation(t *testing.T) {
 		t.Fatalf("first=%+v %v", first, err)
 	}
 	policy.Selection.ID = "two"
-	if _, err := service.List(Request{Limit: 1, Cursor: first.NextCursor}); err == nil {
+	if _, checkErr := service.List(Request{Limit: 1, Cursor: first.NextCursor}); checkErr == nil {
 		t.Fatal("cross-profile cursor accepted")
 	}
 }
@@ -133,7 +133,7 @@ func TestProtocolProfilePaginationAvailabilityAndBinding(t *testing.T) {
 		entries = append(entries, Entry{Tool: tool, Origin: "alpha"})
 		tools = append(tools, tool)
 	}
-	tool := &mcpsdk.Tool{Name: "tether_gateway_status", InputSchema: map[string]any{}}
+	tool := &mcpsdk.Tool{Name: "mcp_gateway_status", InputSchema: map[string]any{}}
 	tools = append(tools, tool)
 	snapshot := Snapshot{Entries: entries, Origins: []OriginStatus{{ID: "alpha", Status: "connected"}}}
 	policy := &Policy{Selection: ProfileSelection{ID: "one", Profile: &Profile{Order: []string{"alpha_1004"}}}, ServerOrder: []string{"alpha", "tether"}}
@@ -148,7 +148,7 @@ func TestProtocolProfilePaginationAvailabilityAndBinding(t *testing.T) {
 		t.Fatalf("second page len=%d err=%v", len(second), err)
 	}
 	policy.Selection.ID = "two"
-	if _, _, err := service.ProtocolList(tools, infrastructure, cursor); err == nil {
+	if _, _, checkErr := service.ProtocolList(tools, infrastructure, cursor); checkErr == nil {
 		t.Fatal("cross-profile protocol cursor accepted")
 	}
 	snapshot.Origins[0].Status = "unavailable"
@@ -178,10 +178,10 @@ func TestToolGlobsIncludeSlashAcrossPolicyPaths(t *testing.T) {
 	if out, err := service.List(Request{Names: []string{entry.Tool.Name}}); err != nil || out.Items[0].Error == "" {
 		t.Fatalf("hydrate=%v %v", out, err)
 	}
-	if _, err := service.Call(context.Background(), entry.Tool.Name, nil, nil); err == nil {
+	if _, checkErr := service.Call(context.Background(), entry.Tool.Name, nil, nil); checkErr == nil {
 		t.Fatal("deny bypass")
 	}
-	if _, err := service.List(Request{Servers: []string{"alpha"}}); err == nil {
+	if _, checkErr := service.List(Request{Servers: []string{"alpha"}}); checkErr == nil {
 		t.Fatal("fully excluded server accepted")
 	}
 	policy.Selection.Profile.Tools.Deny = nil
@@ -198,7 +198,7 @@ func TestSelectedProfileValidationAndUnavailablePins(t *testing.T) {
 			t.Fatalf("unselected malformed profile blocked start: %v", err)
 		}
 	}
-	if _, err := ResolveProfile(config, ProfileInputs{Explicit: []Selector{{"bad", "argument"}}}); err == nil {
+	if _, checkErr := ResolveProfile(config, ProfileInputs{Explicit: []Selector{{"bad", "argument"}}}); checkErr == nil {
 		t.Fatal("selected malformed profile accepted")
 	}
 	policy := Policy{Selection: ProfileSelection{Profile: &Profile{Order: []string{"alpha_read"}}}}
@@ -213,7 +213,7 @@ func TestSelectedProfileValidationAndUnavailablePins(t *testing.T) {
 	if err := policy.ValidateNames(snapshot); err == nil {
 		t.Fatal("connected missing pin accepted")
 	}
-	for _, name := range []string{"tether_gateway_status", "tether_tool_search", "tether_tool_list", "tether_tool_call"} {
+	for _, name := range []string{"mcp_gateway_status", "mcp_gateway_tool_search", "mcp_gateway_tool_list", "mcp_gateway_tool_call"} {
 		policy.Selection.Profile.Order = []string{name}
 		snapshot.Entries = []Entry{{Tool: &mcpsdk.Tool{Name: name}}}
 		if err := policy.ValidateNames(snapshot); err == nil {

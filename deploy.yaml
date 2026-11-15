@@ -1,0 +1,21 @@
+# Generated from project.yaml settings.runtime; regenerate with folio deploy render.
+schema: fleet-deploy/v1
+app: mcp-gateway
+repo: hollis-labs/mcp-gateway
+artifact: {name: "mcp-gateway-{sha12}", tarball: "mcp-gateway_{version}_{os}_{arch}.tar.gz", sums: SHA256SUMS}
+targets:
+  - id: mcp-gateway-linux-amd64
+    when: {os: linux, arch: amd64}
+    hosts: [fleet-host]
+    binary: mcp-gateway
+    install_root: "~/.local/share/fleet/releases/mcp-gateway"
+    symlinks:
+      - path: "~/.local/bin/mcp-gateway"
+    preflight:
+      - {kind: sqlite_backup, db: "~/.local/share/mcp-gateway/mcp-gateway.db", dest: "{backup_dir}/mcp-gateway.pre-{version}.db"}
+    # Cerberus supervises the process (Option B): it runs the symlink above and never builds or places the binary.
+    restart: {via: cerberus, resource: mcp-gateway}
+    health:
+      url: "http://127.0.0.1:8080/healthz"
+      expect_status: [200]
+      timeout: 30s

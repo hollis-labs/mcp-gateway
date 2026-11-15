@@ -328,7 +328,7 @@ func TestSearchEval(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := os.WriteFile(baselinePath(sc.Name), append(raw, '\n'), 0o644); err != nil {
+			if err := os.WriteFile(baselinePath(sc.Name), append(raw, '\n'), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			continue
@@ -500,7 +500,7 @@ func TestSearchEvalSnapshot(t *testing.T) {
 		sb.WriteString("\n")
 	}
 	sb.WriteString("  ]\n}\n")
-	if err := os.WriteFile(filepath.Join(searchEvalDir, "catalog.json"), []byte(sb.String()), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(searchEvalDir, "catalog.json"), []byte(sb.String()), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("wrote catalog.json: %d tools sha256 %s", cat.Tools, cat.SHA256)
@@ -514,6 +514,7 @@ func TestSearchEvalLiveDrift(t *testing.T) {
 	if path == "" {
 		t.Skip("set SEARCH_EVAL_LIVE_INVENTORY=<inventory.json> to check the labels against the live gateway")
 	}
+	// #nosec G304 G703 -- Explicit test fixture path from the local evaluation harness.
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

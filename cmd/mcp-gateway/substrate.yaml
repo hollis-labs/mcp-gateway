@@ -1,0 +1,23 @@
+# mcp-gateway on Substrate. The manifest is the shell: modules and config.
+app: mcp-gateway
+variant: app-host
+profiles: [agentic]
+modules:
+  add: [database, identity, cli]
+  remove: [mcp]
+config:
+  logging: { level: info, format: text }
+  httphost: { addr: "127.0.0.1:8080", fallback: not_found }
+  database:
+    sqlite: { path: mcp-gateway.db }
+  auth: { mode: enforce }
+  identity: { key_file: identity-signing.key, session_ttl: 12h }
+  secrets: { state_dir: secrets }
+  # The app's own block (internal/settings); the SUBSTRATE_CONFIG file overrides it key by key.
+  mcp-gateway:
+    allowed_hosts: []
+    tether_socket: ""
+    protected_paths: []
+    upstreams: []
+    registry_url: ""
+    registry_token_file: ""

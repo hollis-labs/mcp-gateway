@@ -1,4 +1,4 @@
-package mcpadapter
+package upstream
 
 import (
 	"os"
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hollis-labs/tether/internal/config"
+	"github.com/hollis-labs/mcp-gateway/internal/config"
 )
 
 // RuntimeObservationCapability is an experimental, observation-only wire
@@ -65,21 +65,6 @@ func embeddedBuildObservation() BuildObservation {
 		}
 	}
 	return b
-}
-
-// SetBuildMetadata wires the CLI's link-time values before serving requests.
-// These values survive replacement of the executable on disk. They remain
-// descriptive metadata; an unstamped or dirty build must not look proven fresh.
-func (a *Adapter) SetBuildMetadata(label, commit, builtAt string) {
-	if label != "" && label != "dev" {
-		a.runtime.Build.Version = label
-	}
-	if commit != "" && commit != "unknown" {
-		a.runtime.Build.Commit = commit
-	}
-	if builtAt != "" && builtAt != "unknown" {
-		a.runtime.Build.BuiltAt = builtAt
-	}
 }
 
 // LaunchObservation describes the selector and the owner's pre-spawn lookup,

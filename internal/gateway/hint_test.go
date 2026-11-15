@@ -177,8 +177,8 @@ func TestBuildArgHintIsCompact(t *testing.T) {
 	if hint == nil {
 		t.Fatal("want a hint")
 	}
-	if len(hint.AcceptedArgs) != 0 || !strings.Contains(hint.Next, "tether_tool_list") || !strings.Contains(hint.Next, "big_tool") {
-		t.Errorf("a long accepted list must be replaced by a pointer to tether_tool_list: %+v", hint)
+	if len(hint.AcceptedArgs) != 0 || !strings.Contains(hint.Next, "mcp_gateway_tool_list") || !strings.Contains(hint.Next, "big_tool") {
+		t.Errorf("a long accepted list must be replaced by a pointer to mcp_gateway_tool_list: %+v", hint)
 	}
 	raw, _ := json.Marshal(hint)
 	if len(raw) > 600 {

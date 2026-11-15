@@ -1,10 +1,10 @@
-package mcpadapter
+package upstream
 
 import (
 	"net/url"
 
 	"github.com/hollis-labs/libs/security/secrets/redact"
-	"github.com/hollis-labs/tether/internal/config"
+	"github.com/hollis-labs/mcp-gateway/internal/config"
 )
 
 func (p *ClientPool) redactError(err error, entry config.MCPServerEntry) error {

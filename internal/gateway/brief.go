@@ -9,7 +9,7 @@ import (
 // BriefDescriptionMax is the longest one-line description a search summary
 // carries (CW-20261024-0050). The MCP client best-practices guidance for the
 // catalog layer is names and one-line descriptions; the full text and schema
-// come from detail=schema or tether_tool_list.
+// come from detail=schema or mcp_gateway_tool_list.
 const BriefDescriptionMax = 160
 
 // maxRequiredArgs bounds how many required-argument names a summary lists.

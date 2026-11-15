@@ -99,7 +99,7 @@ func TestProtocolListHandsClientsValidSchemas(t *testing.T) {
 	}
 }
 
-// The schemas rendered by tether_tool_list and tether_tool_search are clean too.
+// The schemas rendered by mcp_gateway_tool_list and mcp_gateway_tool_search are clean too.
 func TestListAndSearchRenderClientSafeSchemas(t *testing.T) {
 	bad := &mcpsdk.Tool{Name: "caster_ls", Description: "List named items", InputSchema: nullRequiredSchema()}
 	snapshot := Snapshot{Entries: []Entry{{Tool: bad, Origin: "caster"}}, Origins: []OriginStatus{{ID: "caster", Status: "connected"}}}

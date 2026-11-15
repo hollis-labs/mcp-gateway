@@ -27,7 +27,7 @@ type SchemaCoverage struct {
 	WithTitle        int `json:"with_title"`
 }
 
-// StatusSummary is the default answer of tether_gateway_status: counts, which
+// StatusSummary is the default answer of mcp_gateway_status: counts, which
 // origins work and which do not (with the reason), lint totals by code, and one
 // line saying what "complete" means here. Lint detail is only on request.
 type StatusSummary struct {

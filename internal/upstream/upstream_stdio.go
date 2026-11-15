@@ -1,4 +1,4 @@
-package mcpadapter
+package upstream
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"github.com/hollis-labs/libs/mcp/plugin-mcp/go-mcp/supervise"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/hollis-labs/tether/internal/config"
+	"github.com/hollis-labs/mcp-gateway/internal/config"
 )
 
 // stdioUpstream owns Wait; the MCP transport only owns the protocol pipes.
@@ -71,10 +71,6 @@ func (r *eofReader) Read(b []byte) (int, error) {
 // This also means: NOT mcpsdk.CommandTransport, which owns Cmd construction
 // itself and exposes no hook to intercept reads for "lost" detection or to
 // attach our own Stderr/WaitDelay configuration.
-func spawnStdioUpstream(entry config.MCPServerEntry, lifetime ...context.Context) (*stdioUpstream, *mcpsdk.IOTransport, error) {
-	return spawnStdioUpstreamConfined(entry, nil, false, lifetime...)
-}
-
 func spawnStdioUpstreamConfined(entry config.MCPServerEntry, protected []string, requireConfinement bool, lifetime ...context.Context) (*stdioUpstream, *mcpsdk.IOTransport, error) {
 	if requireConfinement && len(protected) == 0 {
 		return nil, nil, fmt.Errorf("daemon MCP upstream confinement requires protected roots")
@@ -93,11 +89,11 @@ func spawnStdioUpstreamConfined(entry config.MCPServerEntry, protected []string,
 		cmd = exec.CommandContext(lifetime[0], entry.Command, args...)
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		cmd.Cancel = func() error {
-			err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-			if errors.Is(err, syscall.ESRCH) {
+			killErr := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			if errors.Is(killErr, syscall.ESRCH) {
 				return os.ErrProcessDone
 			}
-			return err
+			return killErr
 		}
 	} // probe shutdown owns the child lifetime
 	u := &stdioUpstream{cmd: cmd, probe: len(lifetime) > 0, done: make(chan struct{}), lost: make(chan struct{})}
@@ -120,8 +116,8 @@ func spawnStdioUpstreamConfined(entry config.MCPServerEntry, protected []string,
 	}
 	if requireConfinement {
 		u.cmd.Env = daemonUpstreamEnvironment(os.Environ(), entry.Env)
-		if err := confineDaemonUpstream(u.cmd, protected); err != nil {
-			return nil, nil, err
+		if confineErr := confineDaemonUpstream(u.cmd, protected); confineErr != nil {
+			return nil, nil, confineErr
 		}
 	}
 	u.cmd.Stderr = &u.stderr

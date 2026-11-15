@@ -1,0 +1,179 @@
+folio_version: "0.1"
+generated_at: 2026-11-15T13:14:52.108664-06:00
+generator: folio/0.1.0
+presets:
+  - id: go-baseline
+    version: 0.1.0
+    source: bundled
+    resolved_path: bundled:presets/go-baseline
+  - id: substrate-baseline
+    version: 0.1.0
+    source: bundled
+    resolved_path: bundled:presets/substrate-baseline
+  - id: substrate-app
+    version: 0.1.0
+    source: bundled
+    resolved_path: bundled:presets/substrate-app
+inputs:
+  agents_boundaries: |-
+    - Pins are edited only in the Substrate `bom/bom.yaml`: run `substrate pins sync --app .`, never hand-edit a version in `go.mod`.
+    - Transports (`internal/api`, later `internal/mcp`, `internal/cli`) never import `internal/storage`, the Substrate `database` module or `database/sql`; go through `internal/service`.
+    - A route without a scope is refused in `enforce`: add it to `Routes()` in `internal/api/api.go` (`TestEveryRouteHasAScope` guards this).
+    - Reads go through `Reader()`, writes through `WriteTx` or one `ExecContext`; never write while a cursor is open on the write handle (SQLite has one write connection).
+    - No secret, host name, address or personal path in a file, a commit or CI: `substrate scan-public --ref HEAD` must stay clean.
+  agents_start_here: |-
+    - `cmd/mcp-gateway/substrate.yaml` — the manifest: modules and config defaults. `substrate_wiring.go` is generated from it (`substrate generate`); never edit it.
+    - `cmd/mcp-gateway/serve.go` — the HTTP handler stack: Host check, identity middleware, the host (guard, routes, SPA).
+    - `internal/api/api.go` — every route and the scope it needs. The owner of a row is the verified principal, never a request field.
+    - `internal/service/service.go` — the service layer, the only code that runs SQL; handlers call it. `.golangci.transport.yml` (second lint run) enforces that; `docs/transport-boundary.md` says how.
+    - `internal/storage/migrations/sqlite/00001_init.sql` — the schema. Until the first release this is the only migration.
+    - `docs/identity-bootstrap.md` — the owner is created offline; there is no open setup over HTTP.
+    - `.github/workflows/check.yml` — the full CI gate (vet, pins, wiring current, race tests, both lint runs, scan-public).
+  build_workflow_ref: 7aeb3f65de07c0c41cb0e59a1d6f8300fa3381bc
+  copyright_holder: Hollis Labs
+  deploy_host: fleet-host
+  description: ""
+  github_owner: hollis-labs
+  go_packages: ./...
+  go_toolchain: ""
+  go_version: 1.26.11
+  http_port: "8080"
+  operator: user:operator
+  owner: user:owner
+  repo_name: mcp-gateway
+  repository_location: .
+  repository_name: ""
+  substrate_version: v0.1.1-0.20261115180133-3a0d1b3d6781
+  target_arch: amd64
+  target_os: linux
+  with_chat: ""
+  with_frontend: ""
+computed:
+  app_title: McpGateway
+  env_prefix: MCP_GATEWAY
+  module_path: github.com/hollis-labs/mcp-gateway
+  repository_slug: mcp-gateway
+  workflow_directory: ""
+  year: "2026"
+files:
+  .github/workflows/build.yml:
+    preset: substrate-baseline
+    digest_at_gen: sha256:2594f57d386f7575c31a99ee6936c2e03688caf74385b95dc334f58225c1b72e
+  .github/workflows/check.yml:
+    preset: substrate-baseline
+    digest_at_gen: sha256:966aedb0418dedbd6cdce367a9a1782a35dcbcf43da49e8c9f85b1d9e418a4dd
+  .github/workflows/release.yml:
+    preset: substrate-baseline
+    digest_at_gen: sha256:b92462968adc2310d57aa566ca68838f70537d8119c5f8500fb7819b530a8692
+  .gitignore:
+    preset: substrate-baseline
+    digest_at_gen: sha256:dd8bf7c99bbc642b53ae3d60cb8f0a3821c830e56e8a8974063af3ecb4cfacb9
+  .golangci.transport.yml:
+    preset: substrate-baseline
+    digest_at_gen: sha256:8293cb87f18684936531a531a849830bb328ee5518eab87ab288900c10abdf4e
+  .golangci.yml:
+    preset: go-baseline
+    digest_at_gen: sha256:05520c358d010ae44e2bf14fc945edc54665752a3eb94e25af6ce53dc06e5adc
+  AGENTS.md:
+    preset: go-baseline
+    digest_at_gen: sha256:731566fd377748da3f866157b55bc970cc91235cc6e08e385d139f1aa2987b4a
+  CHANGELOG.md:
+    preset: go-baseline
+    digest_at_gen: sha256:11a33135082e8c418b909344d01ac2e03107e0940184c7879b3ae465d6af5e2b
+  LICENSE:
+    preset: go-baseline
+    digest_at_gen: sha256:29fde794587339581b8d68aa7753337b321da45cbe49cf5a0be907db7e67e7d8
+  README.md:
+    preset: substrate-app
+    digest_at_gen: sha256:02d43b93a8f3cdde4d55256460efdd6f37bc7bd5b05b8296df1ff88e79fb17cb
+  cmd/mcp-gateway/config.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:a2b6d5191788be70bf7f401a535e06ea7a5ab51a3d6ea0b10380c49e00cf3740
+  cmd/mcp-gateway/main.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:2c22f8843e2d391ef5ff6026b0bd823ff2d6e5543e9dd2e43133c2af43f0e8b1
+  cmd/mcp-gateway/plan_test.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:10701b0443e77886a7ad1308d06906b76edce57e37dd62d0258355df31691892
+  cmd/mcp-gateway/serve.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:03132d57c54586d7ff30a432f56c2a10f59ce298d70055a6b4f30e1f141c7c74
+  cmd/mcp-gateway/substrate.yaml:
+    preset: substrate-baseline
+    digest_at_gen: sha256:595f6c079143552ff0739bdd5960376f2784f41cafeb905b72811cf38da640e0
+  cmd/mcp-gateway/substrate_wiring.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:7ceb78c72421af0453d29567432a4e4ab5991616e6a7d033bd7aba2b1ae9e552
+  cmd/mcp-gateway/xdg.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:1b3e13a7f496b1bca7a6ec1c7d8a6d862a6ef25777a6e7dc430b6158f971c8b1
+  deploy.yaml:
+    preset: substrate-baseline
+    digest_at_gen: sha256:ef55fac1f3510f7e32c37c5a56c6f101aeb9bb04a6bae01d3168a6cbce548c47
+  docs/identity-bootstrap.md:
+    preset: substrate-baseline
+    digest_at_gen: sha256:8d79e80c45a26e0eae888b628dce521772312959318e77b7f67e3c97a9bcad7d
+  docs/runbook.md:
+    preset: substrate-baseline
+    digest_at_gen: sha256:f9bf9787319ac4080d467b06a4c8c46efd6b0c8dee3aeb2c1bf0dd2d12f5986e
+  docs/transport-boundary.md:
+    preset: substrate-baseline
+    digest_at_gen: sha256:b7e3effd4ac1a50208c92bac98a016fdf022fa5f535194a8dda1e80a73c417a0
+  go.mod:
+    preset: substrate-baseline
+    digest_at_gen: sha256:311efdfd72651dcbd6a45cc32de847f9f2c498af7ef68e7a7d1c58f780fe3643
+  internal/api/api.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:2b8389f68d2f061953c30c5a08794390f2998f96b062cf9d8b2d8334fc18b094
+  internal/api/api_test.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:df16821f5a273b772f0289f3563b5b87e3824cd46de6ba010087a66d77f5cfa4
+  internal/hostguard/hostguard.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:53e768bee6e7c98fe348e3dca7afb1b08218326d0709380e1f49bc3eb8221670
+  internal/hostguard/hostguard_test.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:c4d8953bc03537190ba600b6cf49bb306a12ee7c88e958725563bfec4d80c478
+  internal/service/service.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:c2bbeef8ffad34aabae622439c8b87206209f0aaa8a3185143e749bd7358dd09
+  internal/settings/settings.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:b3c2ece0ef80ef73dfabf29848b76b27d599ef2f6105ae4a9b3bcbeda35db721
+  internal/settings/settings_test.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:cdbb79b3eb9d45e555347fc6fe6aeab5f179a7d0fcd6c7b149b932ca3991b276
+  internal/storage/migrations.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:291a11f31924bf629ec90db58beafd1bb4195555d0ac9fb71f563eda01cee041
+  internal/storage/migrations/sqlite/00001_init.sql:
+    preset: substrate-baseline
+    digest_at_gen: sha256:b499a09e5144aa530ee1da6c691a14c93909daa3dd6ae4444a1a69293668e1f9
+  internal/webui/dist/.gitkeep:
+    preset: substrate-baseline
+    digest_at_gen: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  internal/webui/webui.go:
+    preset: substrate-baseline
+    digest_at_gen: sha256:4661e0d717e20cda23e8257c267cb56612fdda1498d984ab6e9cf2905637acbf
+  lefthook.yml:
+    preset: go-baseline
+    digest_at_gen: sha256:3c829519885e2f797a35d1e0a22d5bbb887793359a450bd4765cc65ce09623ac
+  mcp-gateway.cerberus.yaml:
+    preset: substrate-baseline
+    digest_at_gen: sha256:32ebebd2093435dd75552690fbedf19da093bd7b0129bd7c540e44646b417ce7
+  project.yaml:
+    preset: substrate-baseline
+    digest_at_gen: sha256:d159a4e764ff15555a26f924abc83a59c7318ced7f65ef6403194c12f213068b
+  scan-public.allow:
+    preset: substrate-baseline
+    digest_at_gen: sha256:61bcec710295e34495164d618be37202875040f96e2ef4663f83233cdefeb2b0
+sync_history:
+  - at: 2026-11-15T13:14:52.108664-06:00
+    operation: init
+    presets:
+      - id: go-baseline
+        version: 0.1.0
+      - id: substrate-baseline
+        version: 0.1.0
+      - id: substrate-app
+        version: 0.1.0

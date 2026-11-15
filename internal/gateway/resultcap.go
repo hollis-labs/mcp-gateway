@@ -43,7 +43,7 @@ const DefaultResultCapBytes = 32 << 10
 const ResultCapEnv = "TETHER_MCP_RESULT_CAP_BYTES"
 
 // ResultNextTool is the native tool that serves the next slice of a capped result.
-const ResultNextTool = "tether_result_next"
+const ResultNextTool = "mcp_gateway_result_next"
 
 const (
 	maxStashBytes   = 8 << 20
@@ -395,7 +395,7 @@ func (p *ResultPager) Cap(tool string, readOnly bool, res *mcpsdk.CallToolResult
 }
 
 func continueText(cursor string) string {
-	return fmt.Sprintf("call %s with {\"cursor\":%q}; in search mode dispatch it through tether_tool_call", ResultNextTool, cursor)
+	return fmt.Sprintf("call %s with {\"cursor\":%q}; in search mode dispatch it through mcp_gateway_tool_call", ResultNextTool, cursor)
 }
 
 func (p *ResultPager) put(id string, s *stash) bool {

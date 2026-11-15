@@ -1,0 +1,29 @@
+# Authored project/1 descriptor; Folio never overwrites it.
+schema: project/1
+id: mcp-gateway
+name: MCP Gateway
+description: "MCP discovery and dispatch with delegated Tether caller authority"
+class: 1
+lifecycle: experimental
+visibility: public
+owner: user:owner
+operator: user:operator
+org: hollis-labs
+repo: https://github.com/hollis-labs/mcp-gateway
+location: .
+interfaces:
+  - { type: daemon, name: mcp-gateway, auth: enforce }
+  - { type: api, name: mcp-gateway API, auth: enforce }
+  - { type: mcp, name: mcp-gateway MCP, auth: enforce }
+substrate: { variant: app-host, profile: agentic, version: v0.1.1-0.20261115193021-7931a24ca831 }
+deploy: { fleet: deploy.yaml, cerberus: mcp-gateway.cerberus.yaml }
+release: { tagging: semver }
+settings:
+  runtime:
+    target_os: linux
+    target_arch: amd64
+    host: fleet-host
+    http_port: 8080
+    binary_link: ~/.local/bin/mcp-gateway
+    install_root: ~/.local/share/fleet/releases/mcp-gateway
+    backup_database: ~/.local/share/mcp-gateway/mcp-gateway.db

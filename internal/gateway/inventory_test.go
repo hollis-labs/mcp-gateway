@@ -39,12 +39,12 @@ func TestEnumerationHydrationAndCursorBinding(t *testing.T) {
 		t.Fatalf("last: %+v", last)
 	}
 	for _, req := range []Request{{Limit: 2, Cursor: first.NextCursor}, {Limit: 1, Servers: []string{"a"}, Cursor: first.NextCursor}} {
-		if _, err := svc.List(req); err == nil {
+		if _, checkErr := svc.List(req); checkErr == nil {
 			t.Fatal("changed request cursor accepted")
 		}
 	}
 	snapshot.Entries[0].Tool.Description = "updated schema description"
-	if _, err := svc.List(Request{Limit: 1, Cursor: first.NextCursor}); err == nil {
+	if _, checkErr := svc.List(Request{Limit: 1, Cursor: first.NextCursor}); checkErr == nil {
 		t.Fatal("stale inventory cursor accepted")
 	}
 	hydrated, err := svc.List(Request{Names: []string{"a_two", "excluded_tool"}})
@@ -54,10 +54,10 @@ func TestEnumerationHydrationAndCursorBinding(t *testing.T) {
 	if hydrated.Items[0].Annotations != snapshot.Entries[0].Tool.Annotations || hydrated.Items[0].Meta["owner"] != "a" || hydrated.Items[1].Error == "" {
 		t.Fatalf("hydration: %+v", hydrated)
 	}
-	if _, err := svc.List(Request{Names: []string{"a_one"}, Servers: []string{"a"}}); err == nil {
+	if _, checkErr := svc.List(Request{Names: []string{"a_one"}, Servers: []string{"a"}}); checkErr == nil {
 		t.Fatal("hydration accepted enumeration fields")
 	}
-	if _, err := svc.List(Request{Servers: []string{"excluded"}}); err == nil {
+	if _, checkErr := svc.List(Request{Servers: []string{"excluded"}}); checkErr == nil {
 		t.Fatal("unknown server accepted")
 	}
 }
@@ -75,7 +75,7 @@ func TestSearchDetailAndUnavailableCalls(t *testing.T) {
 		t.Fatalf("schemas %+v %v", schemas, err)
 	}
 	for _, req := range []Request{{Query: ""}, {Query: "task", Detail: "unknown"}, {Query: "task", Limit: 51}} {
-		if _, err := svc.Search(req); err == nil {
+		if _, checkErr := svc.Search(req); checkErr == nil {
 			t.Fatalf("invalid request accepted: %+v", req)
 		}
 	}
@@ -90,10 +90,10 @@ func TestSearchDetailAndUnavailableCalls(t *testing.T) {
 		t.Fatalf("result not preserved: %v %v", result, err)
 	}
 	snapshot.Origins[0].Status = "reconnecting"
-	if _, err := svc.Call(context.Background(), "a_one", nil, nil); err == nil {
+	if _, checkErr := svc.Call(context.Background(), "a_one", nil, nil); checkErr == nil {
 		t.Fatal("unavailable call dispatched")
 	}
-	if _, err := svc.Call(context.Background(), "excluded_tool", nil, nil); err == nil {
+	if _, checkErr := svc.Call(context.Background(), "excluded_tool", nil, nil); checkErr == nil {
 		t.Fatal("excluded call dispatched")
 	}
 	if dispatches != 1 {

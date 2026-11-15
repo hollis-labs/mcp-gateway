@@ -24,7 +24,7 @@ func lintInputSchema(value any) string {
 		return "input_schema_limit"
 	}
 	var schema jsonschema.Schema
-	if err := json.Unmarshal(raw, &schema); err != nil || schema.Type != "object" {
+	if decodeErr := json.Unmarshal(raw, &schema); decodeErr != nil || schema.Type != "object" {
 		return "input_schema"
 	}
 	if !(&schemaBudget{}).visit(reflect.ValueOf(&schema), 0) {

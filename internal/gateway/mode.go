@@ -28,7 +28,7 @@ type Profile struct {
 	// Pinned lists tools a search-mode endpoint also exposes by name beside the four
 	// gateway tools (CW-20261024-0057): the few a role really uses are listed with their
 	// real schemas and callable directly, and everything else stays reachable through
-	// tether_tool_search. Pinned tools must pass the profile's own tool rules, are
+	// mcp_gateway_tool_search. Pinned tools must pass the profile's own tool rules, are
 	// marked always-load, and are ignored in flat mode, which lists every eligible tool.
 	Pinned        []string `yaml:"pinned" json:"pinned,omitempty"`
 	Instructions  string   `yaml:"instructions" json:"instructions,omitempty"`

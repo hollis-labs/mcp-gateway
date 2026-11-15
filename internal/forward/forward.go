@@ -1,6 +1,6 @@
 // Package mcpforward relays a session's admitted daemon tools over stdio.
 // It has no catalog, store, upstream pool, process spawning or local fallback.
-package mcpforward
+package forward
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hollis-labs/tether/internal/client"
+	"github.com/hollis-labs/mcp-gateway/internal/client"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -88,7 +88,7 @@ func Run(ctx context.Context, dc *client.Client, opts client.MCPOptions, transpo
 	}
 	defer relay.close()
 	initialized := upstream.InitializeResult()
-	server := mcp.NewServer(&mcp.Implementation{Name: "tether-forwarder", Version: "1"}, &mcp.ServerOptions{
+	server := mcp.NewServer(&mcp.Implementation{Name: "mcp-gateway-forwarder", Version: "1"}, &mcp.ServerOptions{
 		// The daemon Streamable HTTP transport currently negotiates legacy MCP.
 		// Match that epoch: newer subscription envelopes require a separate relay.
 		SupportedProtocolVersions: []string{"2025-11-25"},

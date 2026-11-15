@@ -1,45 +1,45 @@
 # MCP Gateway
 
-Standalone class-1 MCP gateway application, under development.
+Standalone class 1 MCP discovery and dispatch service built on Substrate. Tether remains the caller identity, session and grant authority. This repository contains the extracted implementation; production adoption and deployment are separate work.
 
-This first extraction contains the behavior-preserving gateway core. It does
-not yet expose a runnable service. Tether authority and native-tool integration,
-upstream transport ownership, and Registry integration are separate assembly
-steps. Deployment and consumer adoption are not part of this extraction.
+The gateway owns one upstream connection/process pool, per-caller native Tether connections, flat/search discovery, profile filtering, name diagnostics, numeric-safe dispatch, bounded result paging, and a refreshed Registry metadata snapshot. It never derives executable configuration or permission from Registry records.
 
-## Core
+## Run
 
-`internal/gateway` implements tool discovery, flat/search presentation,
-profile restrictions, naming diagnostics, result paging and search evaluation.
-Its policy inputs come from an authority; the package does not issue identity
-or grant permissions.
+Build with `go build ./cmd/mcp-gateway`. Configure the optional XDG file `~/.config/mcp-gateway/config.yaml` or an explicit `SUBSTRATE_CONFIG` file. The backend must be a co-located Tether version exposing its protected `/gateway/mcp/` Unix-socket routes.
 
-```sh
-go test -race ./...
-go vet ./...
-go test ./internal/gateway -run '^TestSearchEval$' -count=1 -v
+```yaml
+mcp-gateway:
+  tether_socket: /path/to/tether/control.sock
+  upstreams: []
+  allowed_hosts: []
 ```
 
-The query labels and scorer retain their original behavior. Personal paths in
-the catalog fixture are replaced with neutral public examples throughout the
-retained history. The driver approved the resulting fixture-only baseline
-adjustments: no scored-query ranks, recall or MRR changed; no-match totals fell
-by one for each scorer, and BM25 median response bytes changed from 3155 to
-3159 overall and from 3175 to 3181 on held-out queries. No ranking experiment
-or tuning is included.
+`mcp-gateway serve --addr unix:/absolute/path/gateway.sock` accepts local callers. Every TCP ingress, including loopback and reverse proxies, uses Tether's remote admission/native pair and requires an issued session-bound agent credential. HTTP headers, query parameters and tool metadata cannot choose the local pair. The local socket is created with mode 0600.
 
-## Source history
+`mcp-gateway mcp --addr unix:/absolute/path/gateway.sock --token-file /absolute/path/caller.key` forwards stdio to the service. It reads the caller credential once, starts no upstream itself, and never replays an uncertain tool call. Optional selectors are `--profile` and `--discovery-mode flat|search`.
 
-The initial history is filtered from
-[`hollis-labs/tether`](https://github.com/hollis-labs/tether) at
-`6840a09a22fa12cfc3d6d321deca7d6075e3b618`, selecting
-`internal/mcpgateway` and relocating it to `internal/gateway` with
-`git filter-repo`. The retained commits preserve their authors and dates;
-path filtering necessarily changes commit identities. Original source license
-and copyright are retained in `LICENSE`.
-`SOURCE_HISTORY.json` maps retained source commits to their sanitized extracted
-commits. Catalog fingerprints are recalculated after sanitization.
+The gateway's own Substrate identity protects administration only. See [identity bootstrap](docs/identity-bootstrap.md) and [operations](docs/runbook.md).
 
-The following preparation changes the package name to `gateway` and supplies
-an independent module with the source's dependency versions. Tether's active
-implementation remains in place until separately reviewed adoption and removal.
+## MCP surface
+
+Search mode lists `mcp_gateway_tool_list`, `mcp_gateway_tool_search`, `mcp_gateway_tool_call`, `mcp_gateway_status` and `mcp_gateway_result_next`, plus eligible pinned tools. Flat mode lists eligible real tools, status and paging. Native business tool names remain `tether_*`; old gateway wrapper aliases are absent.
+
+Each HTTP and SDK operation obtains fresh Tether admission. The opaque fingerprint binds a view to its principal, policy and profile. Revocation or changed authority cancels the view; the latest known credential expiry cancels in-flight work even during an authority outage. Refresh can extend an equivalent view without regressing its expiry. SessionPolicy.Servers restricts configured upstreams; native tools retain Tether's separate scope and profile checks.
+
+Registry snapshots refresh every minute and publish only after all pages validate. An outage retains the last whole snapshot with an explicit stale indicator. Missing metadata stays unknown; routing continues from observed upstream declarations. Definition hashes must match before a reviewed classification is associated with a live tool. Correlation hints are resolved against the snapshot and remain distinct from verified identity. Caller attribution comes from Tether `/auth/context` using the admitted bearer and is forwarded only after matching the principal and session.
+
+## Verification and history
+
+```sh
+go vet ./...
+go test -race ./...
+go run github.com/hollis-labs/substrate/cmd/substrate pins check --app .
+golangci-lint run ./...
+golangci-lint run --config .golangci.transport.yml ./...
+go run github.com/hollis-labs/substrate/cmd/substrate scan-public --ref HEAD
+```
+
+The core, selected upstream runtime and stdio forwarding histories are filtered from `hollis-labs/tether` at `6840a09a22fa12cfc3d6d321deca7d6075e3b618`; authorship and dates are retained. [SOURCE_HISTORY.json](SOURCE_HISTORY.json) maps original commits to extracted commits. The original MIT license remains in LICENSE. Substrate/Folio supplied the application shell; demo CRUD was removed.
+
+Personal fixture paths were sanitized throughout retained core history. Query labels and scorer behavior are unchanged. The reviewed fixture-only rebaseline preserved all scored-query ranks, recall and MRR; no-match totals fell by one per scorer, and BM25 median response bytes changed 3155→3159 overall and 3175→3181 for held-out queries. No scorer tuning or code-mode experiment is included.

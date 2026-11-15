@@ -1,4 +1,4 @@
-package mcpadapter
+package upstream
 
 import (
 	"bytes"

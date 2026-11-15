@@ -290,7 +290,7 @@ func (p Policy) NameWarnings(snapshot Snapshot) []string {
 
 func IsInfrastructure(name string) bool {
 	switch name {
-	case "tether_gateway_status", "tether_tool_search", "tether_tool_list", "tether_tool_call":
+	case "mcp_gateway_status", "mcp_gateway_tool_search", "mcp_gateway_tool_list", "mcp_gateway_tool_call":
 		return true
 	}
 	return false

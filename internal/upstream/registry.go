@@ -1,8 +1,8 @@
-package mcpadapter
+package upstream
 
 import (
 	"fmt"
-	"github.com/hollis-labs/tether/internal/mcpgateway"
+	mcpgateway "github.com/hollis-labs/mcp-gateway/internal/gateway"
 	"reflect"
 	"sort"
 	"sync"

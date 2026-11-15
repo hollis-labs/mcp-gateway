@@ -1,11 +1,11 @@
-package mcpadapter
+package upstream
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
 
-	"github.com/hollis-labs/tether/internal/mcpgateway"
+	mcpgateway "github.com/hollis-labs/mcp-gateway/internal/gateway"
 )
 
 // startOrigins serializes only supervisor creation, never a handshake. A slow

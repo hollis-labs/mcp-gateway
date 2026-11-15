@@ -26,7 +26,7 @@ type ArgHint struct {
 	MissingRequired []string `json:"missing_required,omitempty"`
 	RequiredArgs    []string `json:"required_args,omitempty"`
 	// AcceptedArgs is listed only when the list is short; otherwise Next points
-	// at tether_tool_list for the full schema (the list costs tokens).
+	// at mcp_gateway_tool_list for the full schema (the list costs tokens).
 	AcceptedArgs []string `json:"accepted_args,omitempty"`
 	// Example is a minimal call built from the required arguments, with placeholder
 	// values; it shows the shape, not real data.
@@ -113,7 +113,7 @@ func BuildArgHint(tool *mcpsdk.Tool, args map[string]any) *ArgHint {
 	if len(d.props) > 0 && len(d.props) <= maxAcceptedListed {
 		hint.AcceptedArgs = append([]string(nil), d.order...)
 	} else if len(d.props) > maxAcceptedListed {
-		hint.Next = `call tether_tool_list with {"names":["` + tool.Name + `"]} for the full schema`
+		hint.Next = `call mcp_gateway_tool_list with {"names":["` + tool.Name + `"]} for the full schema`
 	}
 	hint.Example = exampleFor(d)
 	return hint

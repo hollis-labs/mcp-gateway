@@ -1,9 +1,9 @@
-package mcpadapter
+package upstream
 
 import (
 	"fmt"
 
-	"github.com/hollis-labs/tether/internal/config"
+	"github.com/hollis-labs/mcp-gateway/internal/config"
 )
 
 // A remote server cannot inherit the planted proxy's read-only mounts. Even a

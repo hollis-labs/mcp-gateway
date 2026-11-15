@@ -1,8 +1,8 @@
-package mcpadapter
+package upstream
 
 import (
 	"github.com/hollis-labs/libs/security/secrets/redact"
-	"github.com/hollis-labs/tether/internal/config"
+	"github.com/hollis-labs/mcp-gateway/internal/config"
 )
 
 // redactedError is an upstream error whose text has had the upstream's

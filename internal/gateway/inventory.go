@@ -674,7 +674,7 @@ func (s *Service) Status(name string) Status {
 			case unavailable[entry.Origin]:
 				out.Reason = "origin unavailable"
 			case s.Selection.Mode == Search:
-				out.Reason = "search mode exposes discovery tools; hydrate this name with tether_tool_list and dispatch with tether_tool_call"
+				out.Reason = "search mode exposes discovery tools; hydrate this name with mcp_gateway_tool_list and dispatch with mcp_gateway_tool_call"
 			default:
 				visible = true
 				out.Reason = "listed directly in flat mode"

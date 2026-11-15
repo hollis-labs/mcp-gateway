@@ -1,4 +1,4 @@
-package mcpadapter
+package upstream
 
 import (
 	"context"
@@ -17,8 +17,8 @@ import (
 	"github.com/hollis-labs/libs/mcp/plugin-mcp/go-mcp/supervise"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/hollis-labs/tether/internal/config"
-	"github.com/hollis-labs/tether/internal/mcpgateway"
+	"github.com/hollis-labs/mcp-gateway/internal/config"
+	mcpgateway "github.com/hollis-labs/mcp-gateway/internal/gateway"
 )
 
 // upstreamClient is the narrow contract client_pool.go depends on for an
@@ -396,17 +396,17 @@ func (p *ClientPool) supervise(ctx context.Context, entry config.MCPServerEntry,
 				p.mu.Lock()
 				handler := p.toolRefreshHandler
 				var rebound *ToolRefreshResult
-				report := func() {}
+				reboundReport := func() {}
 				if s.accepted {
 					p.registry.RebindServer(entry.ID, client)
 					s.degraded = true
 					s.err = err
-					report = p.setState(s, "connected")
+					reboundReport = p.setState(s, "connected")
 					err = nil
 					rebound = &ToolRefreshResult{ServerID: entry.ID, ToolCount: s.toolCount}
 				}
 				p.mu.Unlock()
-				report()
+				reboundReport()
 				if rebound != nil && handler != nil {
 					handler(*rebound)
 				}
@@ -501,9 +501,9 @@ func (p *ClientPool) supervise(ctx context.Context, entry config.MCPServerEntry,
 			s.waitStart = time.Now().UTC()
 			s.nextRetry = s.waitStart.Add(delay)
 			s.earlyUsed = false
-			report := p.setState(s, "recovering")
+			recoverReport := p.setState(s, "recovering")
 			p.mu.Unlock()
-			report()
+			recoverReport()
 			slog.Warn("mcp-proxy: remote upstream retry scheduled", "server", entry.ID, "delay", delay) //nolint:gosec // G706 false positive: structured slog attrs are quoted/encoded by the handler; entry.ID is a catalog server id
 			timer := time.NewTimer(delay)
 			select {
@@ -526,9 +526,9 @@ func (p *ClientPool) supervise(ctx context.Context, entry config.MCPServerEntry,
 			s.nextRetry = time.Time{}
 			s.exhausted = true
 			s.err = fmt.Errorf("restart limit reached (%d); correct the upstream and start a new proxy: %w", p.policy.Limit(), s.err)
-			report := p.reportState(s, "failed")
+			failedReport := p.reportState(s, "failed")
 			p.mu.Unlock()
-			report()
+			failedReport()
 			slog.Error("mcp-proxy: upstream recovery stopped", "server", entry.ID, "restart_limit", p.policy.Limit())
 			return
 		}
@@ -697,8 +697,8 @@ func (p *ClientPool) connect(ctx context.Context, entry config.MCPServerEntry) (
 		if entry.Token != "" {
 			cfg.Headers = map[string]string{"Authorization": "Bearer " + entry.Token}
 		}
-		if err := pool.Register(entry.ID, cfg); err != nil {
-			return nil, fmt.Errorf("register %s upstream %q: %w", entry.Transport, entry.ID, err)
+		if registerErr := pool.Register(entry.ID, cfg); registerErr != nil {
+			return nil, fmt.Errorf("register %s upstream %q: %w", entry.Transport, entry.ID, registerErr)
 		}
 		gc, err := pool.Get(entry.ID)
 		if err != nil {
