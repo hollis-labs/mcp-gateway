@@ -1,4 +1,4 @@
-package mcpgateway
+package gateway
 
 // Search-eval harness (CW-20261024-0056): scores tool discovery against a
 // versioned, human-reviewable fixture so a scorer change (BM25, code mode) is

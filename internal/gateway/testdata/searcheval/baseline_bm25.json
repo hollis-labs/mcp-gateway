@@ -7,7 +7,7 @@
     "recall_at_5": 0.8439,
     "recall_at_10": 0.8728,
     "mrr": 0.7391,
-    "median_response_bytes": 3155
+    "median_response_bytes": 3159
   },
   "by_category": {
     "hard": {
@@ -32,7 +32,7 @@
       "recall_at_5": 0.8333,
       "recall_at_10": 0.875,
       "mrr": 0.7902,
-      "median_response_bytes": 3175
+      "median_response_bytes": 3181
     },
     "observed": {
       "queries": 3,
@@ -242,6 +242,6 @@
     "n005": 24,
     "n006": 0,
     "n007": 41,
-    "n008": 5
+    "n008": 4
   }
 }

@@ -1,4 +1,4 @@
-package mcpgateway
+package gateway
 
 import (
 	"sort"

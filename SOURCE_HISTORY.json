@@ -1,0 +1,161 @@
+{
+  "source_repository": "https://github.com/hollis-labs/tether",
+  "source_head": "6840a09a22fa12cfc3d6d321deca7d6075e3b618",
+  "source_path": "internal/mcpgateway",
+  "destination_path": "internal/gateway",
+  "sanitization": "Driver-approved personal home and example paths replaced by neutral public fixture paths throughout retained history; catalog fingerprints recalculated. Query labels and scorer unchanged.",
+  "commits": [
+    {
+      "source_commit": "0365aea6a96fcf769f7df6af22897c8445e069fe",
+      "extracted_commit": "5582e4ba28ef6d8f333f84772a8b1b41e9592a08"
+    },
+    {
+      "source_commit": "08a3c47ebf560fb42fe114e689b91c12bbf96984",
+      "extracted_commit": "5054811579a4473f07681d20e2e73a81efa77c0a"
+    },
+    {
+      "source_commit": "0cd25c57c873c308d8e0f38bcc915342908b995b",
+      "extracted_commit": "28aca8b7fb88287a66f1e5a52d8bc60c9295721b"
+    },
+    {
+      "source_commit": "0f64b2cf1b73e695a1d1cc8772cbc9b584e67a6e",
+      "extracted_commit": "c6ee73191a124228afc45277e869db610ea0d319"
+    },
+    {
+      "source_commit": "138d653a5e1d8ce1214bd5a1f7709f6e5483d528",
+      "extracted_commit": "871e53ac63036c70dc226b49964ccb1d4ed791fb"
+    },
+    {
+      "source_commit": "1abe3bf3dc2e40ff7e3ae0384bed83393e8d90c9",
+      "extracted_commit": "91bc1793aff0e9e81a6e231e8e6a522653e1df0a"
+    },
+    {
+      "source_commit": "35e35cdde2ca185c97f2ec516b90660f6f4c8473",
+      "extracted_commit": "c9926f304ba7ee4d0843184ebeaac5cef4c18669"
+    },
+    {
+      "source_commit": "37d65ec1a043858a286aeb2fd29c26b9687c8467",
+      "extracted_commit": "cd5bf7d70fcd7301756acd81711425e59f36c761"
+    },
+    {
+      "source_commit": "4121ba6e0dc7726eb5799bf7c90bb122bc6759f1",
+      "extracted_commit": "5677d79a0c5e221a43427b2ed40c8b7380a7f7bf"
+    },
+    {
+      "source_commit": "48e83b62d3003d823fcc7395bed6f4169a985c48",
+      "extracted_commit": "3aeaa8d4139cd3c9ef00225a7773b1b2f1dc34f1"
+    },
+    {
+      "source_commit": "4af42f37411badbe01afe37df3ec1fa492dc3d26",
+      "extracted_commit": "5174fc9d6891c5acd80c0e805ca2a5882732f30c"
+    },
+    {
+      "source_commit": "4b681913a2204ce471887384e8c8c69c8f0ad9ad",
+      "extracted_commit": "639a1ece3f927697de6faf19c6fe6f59858630a1"
+    },
+    {
+      "source_commit": "4f06cc30a321b7d34a316e546065be554673ab35",
+      "extracted_commit": "ddd5f5713d4a772d7567b58437fe4afb2a90d2be"
+    },
+    {
+      "source_commit": "4f8367771fbd1144407132810618aa8524411084",
+      "extracted_commit": "ad8a5106ae0291ec62ec65eaba338d96d5eebdeb"
+    },
+    {
+      "source_commit": "54680b6caaf2f090f8cd452842217403b12d7786",
+      "extracted_commit": "fc49689459dbe38a49926dd167b100436ad75e3e"
+    },
+    {
+      "source_commit": "600584e034278bf60b75f3675a98af2762833f83",
+      "extracted_commit": "55edad657349cbd2dd0d31b339213622e2d0e808"
+    },
+    {
+      "source_commit": "666abaee76efaea23bd1fc403e89225dac5e9ccc",
+      "extracted_commit": "4bd4dac4b2e963ddc18e17a123cce4533a7f6b69"
+    },
+    {
+      "source_commit": "68e8b87f318a94e07e343d8d3979115c1143e2e0",
+      "extracted_commit": "5ab630344bc5735cf56d0a68052be27d2891298e"
+    },
+    {
+      "source_commit": "778b83167d07b82eda4f0c77fa6c0255c02a2c7d",
+      "extracted_commit": "9a8013911de0cba32f10a21475e68aa0eb182c6d"
+    },
+    {
+      "source_commit": "7803b978666a35cfd571842bc485795cf6a10e9e",
+      "extracted_commit": "946c9d869a9ae72069e5c8ab3c0270afa323c527"
+    },
+    {
+      "source_commit": "7d2b16dd3f2fca76156f80ba73991eb4a044621c",
+      "extracted_commit": "ea0d660337da31b4398e3ca7c8719ed2fc8359fe"
+    },
+    {
+      "source_commit": "86cd9584057995f4404688631cc0638d81d253c2",
+      "extracted_commit": "095505f8d758fa348ae777ba3f51e0f8e1a92fc7"
+    },
+    {
+      "source_commit": "8c074dfe5a8c23c590539bc765aea4cef333fa4e",
+      "extracted_commit": "222c6d30b9c6a4595c415df42981930d8864b86a"
+    },
+    {
+      "source_commit": "8dc793f783fe52e89adbab07d15af90f2126fc02",
+      "extracted_commit": "2041ab92edaee701bd5f7c00428dca3fd22daf6c"
+    },
+    {
+      "source_commit": "90d030204bed6490ece86d6c3f55e36f793cbfa0",
+      "extracted_commit": "34f04580186992077dabcee9fe41e281fdb33035"
+    },
+    {
+      "source_commit": "94f7cbc4879d5a743bc06a15903723e0549325b4",
+      "extracted_commit": "d23e9fbc185b9d87be1890583890ffe8d0fea788"
+    },
+    {
+      "source_commit": "9795cd6651a1ff3c6d86b6554fe0a140ba80de4e",
+      "extracted_commit": "148b390623d983d1e2a66903daeb93ad80457235"
+    },
+    {
+      "source_commit": "9ef8bbc77a77505b46b1c093a9e2a547306cd862",
+      "extracted_commit": "4235b24734feb7585d8edc470c6324f883b398cd"
+    },
+    {
+      "source_commit": "9f4dda13d8d827db347fecd39b215952991c6e1f",
+      "extracted_commit": "c5f75063b2475162b3fbb0f2b4205bdb3558911f"
+    },
+    {
+      "source_commit": "a5a033b1044b445e07f4b3f5a24564653bd653cb",
+      "extracted_commit": "daa0ab792f0dd4b3404acb5cc9357b7f0cc17cec"
+    },
+    {
+      "source_commit": "a95bc87e73b55e229e6f33ac5a5bd3b6d791db3c",
+      "extracted_commit": "985bdb745dba047965f03a257d2237ca7100106c"
+    },
+    {
+      "source_commit": "c21cb2b63e0d5e9795b0cb2919234fbc54e50284",
+      "extracted_commit": "050b364d3ea4634f8299b3ee3d93740647db0c8e"
+    },
+    {
+      "source_commit": "c7d8b129ac459293a3cf8af78ae15b898188ae08",
+      "extracted_commit": "d9069887fa7bbc8235d029ca545298af1483ae54"
+    },
+    {
+      "source_commit": "d4eb26187cff2c30a446330e2babe08a7a8a5d20",
+      "extracted_commit": "5a29d6567c4306ba7333845faf4c42c0162f5fb5"
+    },
+    {
+      "source_commit": "d8ac3dfbb83a8fb21ffb9b5818e5d9331b7d32e6",
+      "extracted_commit": "56f6cfed018f47eca3d35fee2fea4eeb59ecf246"
+    },
+    {
+      "source_commit": "f56a346a1fc3caff030c3e3b2042b153a3ba85f0",
+      "extracted_commit": "f2bdae4bd29ae95b2bbf5ee94945c08b4a6f6720"
+    },
+    {
+      "source_commit": "f9e62fa429410f745ac3dec96a5a28244826b53f",
+      "extracted_commit": "e2173f0578a78a0e4b0c583f825ab7537c47285d"
+    },
+    {
+      "source_commit": "ffccb0231571e8e67ca8b2a620a8ce2cd8278832",
+      "extracted_commit": "70c922c92d1a810b4c1d6b231f40bc38ee2b6fac"
+    }
+  ]
+}

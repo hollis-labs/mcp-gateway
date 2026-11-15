@@ -1,4 +1,4 @@
-package mcpgateway
+package gateway
 
 // Result cap (CW-20261024-0052, implements CW-20261001-0554).
 //

@@ -1,6 +1,6 @@
 // Package mcpgateway owns discovery selection and the semantic inventory API.
 // Transports supply inventory/dispatch seams; they do not choose discovery policy.
-package mcpgateway
+package gateway
 
 import "fmt"
 
