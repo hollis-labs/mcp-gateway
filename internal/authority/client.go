@@ -26,7 +26,10 @@ type Principal struct {
 	SessionID string     `json:"session_id,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
+
+// Run contains the bindings returned by Tether after verifying the supplied token.
 type Run struct {
+	URN     string `json:"urn"`
 	Session string `json:"session"`
 	RunID   string `json:"run_id"`
 	JTI     string `json:"jti"`
@@ -131,7 +134,7 @@ func (c *Client) Admit(ctx context.Context, token string, s Selectors) (Admissio
 		return Admission{}, &Error{503, "invalid_authority_response"}
 	}
 	if s.RunToken != "" {
-		if out.Run == nil || out.Run.Session != out.Principal.SessionID || out.Run.RunID == "" || out.Run.JTI == "" || out.Run.Expires <= time.Now().Unix() {
+		if out.Run == nil || out.Run.URN == "" || !safeRunHeader(out.Run.URN) || out.Run.Session == "" || !safeRunHeader(out.Run.Session) || out.Run.Session != out.Principal.SessionID || out.Run.RunID == "" || out.Run.JTI == "" || out.Run.Expires <= time.Now().Unix() {
 			return Admission{}, &Error{503, "invalid_authority_response"}
 		}
 		expiry := time.Unix(out.Run.Expires, 0)

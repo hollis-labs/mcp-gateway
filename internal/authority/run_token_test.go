@@ -38,7 +38,7 @@ func TestRunTokenHeaderEnvelope(t *testing.T) {
 
 func TestAdmissionRequiresRunVerificationAndCarriesHeader(t *testing.T) {
 	for _, remote := range []bool{false, true} {
-		for _, mode := range []string{"verified", "legacy backend", "wrong session", "expired", "forged", "absent"} {
+		for _, mode := range []string{"verified", "legacy backend", "wrong session", "missing urn", "unsafe urn", "expired", "forged", "absent"} {
 			t.Run(mode+map[bool]string{true: " remote", false: " local"}[remote], func(t *testing.T) {
 				runToken := fixtureRun
 				if mode == "absent" {
@@ -46,10 +46,16 @@ func TestAdmissionRequiresRunVerificationAndCarriesHeader(t *testing.T) {
 				}
 				response := Admission{SchemaVersion: 1, Principal: Principal{Verified: true, ID: "principal", SessionID: "session"}, Policy: (gateway.SessionPolicy{Servers: []string{}}).Seal(), Fingerprint: "bound", MachineAccess: "read-only", Selection: gateway.Selection{Mode: gateway.Flat}}
 				if mode != "legacy backend" && mode != "absent" {
-					response.Run = &Run{Session: "session", RunID: "execution", JTI: "nonce", Expires: time.Now().Add(time.Hour).Unix()}
+					response.Run = &Run{URN: "msg://session/local/session", Session: "session", RunID: "execution", JTI: "nonce", Expires: time.Now().Add(time.Hour).Unix()}
 				}
 				if mode == "wrong session" {
 					response.Run.Session = "another"
+				}
+				if mode == "missing urn" {
+					response.Run.URN = ""
+				}
+				if mode == "unsafe urn" {
+					response.Run.URN = "invalid\r\nheader"
 				}
 				if mode == "expired" {
 					response.Run.Expires = time.Now().Add(-time.Hour).Unix()

@@ -34,7 +34,7 @@ func TestRunTokenTransportBoundary(t *testing.T) {
 			transport := &originTransport{base: base, origin: origin, forwardRunToken: tc.opt, headers: map[string]string{"x-run-token": fixtureSpoof, "Authorization": "Bearer service"}}
 			ctx := context.Background()
 			if tc.verified {
-				ctx = authority.WithVerifiedRunToken(ctx, fixtureRun)
+				ctx = authority.WithVerifiedRunToken(ctx, fixtureRun, authority.Run{URN: "msg://session/local/fixture", Session: "fixture"})
 			}
 			if tc.call {
 				ctx = withForwardedToolCall(ctx)
@@ -48,6 +48,13 @@ func TestRunTokenTransportBoundary(t *testing.T) {
 			_ = resp.Body.Close()
 			if got := base.request.Header.Get(authority.RunTokenHeader); got != tc.want {
 				t.Fatal("wrong run token forwarding decision")
+			}
+			if tc.want != "" {
+				if base.request.Header.Get("X-Tether-Agent-Urn") != "msg://session/local/fixture" || base.request.Header.Get("X-Tether-Session-Id") != "fixture" {
+					t.Fatal("signed session-only caller binding missing")
+				}
+			} else if base.request.Header.Get("X-Tether-Agent-Urn") != "" || base.request.Header.Get("X-Tether-Session-Id") != "" {
+				t.Fatal("caller binding leaked outside signed tool call")
 			}
 			if req.Header.Get(authority.RunTokenHeader) != "caller-spoof" {
 				t.Fatal("input request mutated")
@@ -68,7 +75,7 @@ func TestRunTokensRemainRequestScoped(t *testing.T) {
 			for range 25 {
 				base := &captureTransport{}
 				transport := &originTransport{base: base, origin: origin, forwardRunToken: true}
-				ctx := withForwardedToolCall(authority.WithVerifiedRunToken(context.Background(), token))
+				ctx := withForwardedToolCall(authority.WithVerifiedRunToken(context.Background(), token, authority.Run{URN: "msg://agent/test/fixture", Session: "fixture"}))
 				req, _ := http.NewRequestWithContext(ctx, "POST", origin.String(), nil)
 				resp, err := transport.RoundTrip(req)
 				if err != nil {
@@ -109,5 +116,22 @@ func TestRunTokenConfigOptIn(t *testing.T) {
 	if r, err := New([]config.MCPServerEntry{entry}, nil); err == nil {
 		r.Close()
 		t.Fatal("stdio accepted HTTP-only opt-in")
+	}
+}
+
+func TestSignedBindingOverridesObservationAttribution(t *testing.T) {
+	origin, _ := url.Parse("https://upstream.example.test")
+	base := &captureTransport{}
+	transport := &originTransport{base: base, origin: origin, forwardRunToken: true, forwardAttribution: true}
+	ctx := authority.WithAttribution(context.Background(), authority.Attribution{SessionID: "observation-session", AgentURN: "msg://agent/test/observation"})
+	ctx = withForwardedToolCall(authority.WithVerifiedRunToken(ctx, fixtureRun, authority.Run{URN: "msg://session/local/signed", Session: "signed"}))
+	req, _ := http.NewRequestWithContext(ctx, "POST", origin.String(), nil)
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if base.request.Header.Get("X-Tether-Agent-Urn") != "msg://session/local/signed" || base.request.Header.Get("X-Tether-Session-Id") != "signed" || base.request.Header.Get("X-Forwarded-User-Id") != "session:signed" {
+		t.Fatal("observation replaced signed caller binding")
 	}
 }

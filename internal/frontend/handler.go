@@ -563,7 +563,7 @@ func (v *view) middleware(next mcp.MethodHandler) mcp.MethodHandler {
 			if a.Run == nil {
 				return nil, fmt.Errorf("run verification unavailable")
 			}
-			ctx = authority.WithVerifiedRunToken(ctx, v.selectors.RunToken)
+			ctx = authority.WithVerifiedRunToken(ctx, v.selectors.RunToken, *a.Run)
 		}
 		ctx, cancel := context.WithCancel(ctx)
 		stop := context.AfterFunc(v.ctx, cancel)

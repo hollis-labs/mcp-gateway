@@ -27,13 +27,34 @@ func ReadRunToken(h http.Header) (string, error) {
 }
 
 type verifiedRunTokenKey struct{}
+type verifiedRun struct {
+	token  string
+	claims Run
+}
+
+func safeRunHeader(value string) bool {
+	if len(value) > 512 {
+		return false
+	}
+	for _, c := range value {
+		if c <= 0x20 || c >= 0x7f {
+			return false
+		}
+	}
+	return true
+}
 
 // WithVerifiedRunToken is called only after fresh Tether admission of this exact
 // token and bearer. The value stays out of attribution, metadata and telemetry.
-func WithVerifiedRunToken(ctx context.Context, token string) context.Context {
-	return context.WithValue(ctx, verifiedRunTokenKey{}, token)
+func WithVerifiedRunToken(ctx context.Context, token string, run Run) context.Context {
+	return context.WithValue(ctx, verifiedRunTokenKey{}, verifiedRun{token: token, claims: run})
 }
 func VerifiedRunToken(ctx context.Context) string {
-	token, _ := ctx.Value(verifiedRunTokenKey{}).(string)
-	return token
+	run, _ := ctx.Value(verifiedRunTokenKey{}).(verifiedRun)
+	return run.token
+}
+
+func VerifiedRun(ctx context.Context) Run {
+	run, _ := ctx.Value(verifiedRunTokenKey{}).(verifiedRun)
+	return run.claims
 }

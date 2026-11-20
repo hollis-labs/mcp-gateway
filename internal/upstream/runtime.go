@@ -267,8 +267,14 @@ func (t *originTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 	}
 	if call && t.forwardRunToken && req.Method == http.MethodPost {
-		if token := authority.VerifiedRunToken(req.Context()); token != "" {
+		run := authority.VerifiedRun(req.Context())
+		if token := authority.VerifiedRunToken(req.Context()); token != "" && run.URN != "" && run.Session != "" {
 			out.Header.Set(authority.RunTokenHeader, token)
+			// Bind token-bearing headers to signed claims, independently of optional
+			// observation attribution. Session-only callers may have no AgentURN.
+			out.Header.Set("X-Tether-Agent-Urn", run.URN)
+			out.Header.Set("X-Tether-Session-Id", run.Session)
+			out.Header.Set("X-Forwarded-User-Id", "session:"+run.Session)
 		}
 	}
 	return t.base.RoundTrip(out)

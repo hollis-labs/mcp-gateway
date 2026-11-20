@@ -93,6 +93,18 @@ func TestVerifiedRunTokenEndToEnd(t *testing.T) {
 					}
 				}
 				mu.Lock()
+				actualRun := r.Header.Get(authority.RunTokenHeader)
+				if actualRun != "" {
+					wantURN := "msg://session/local/session"
+					if actualRun == otherSigned {
+						wantURN = "msg://agent/test/second"
+					}
+					if r.Header.Get("X-Tether-Agent-Urn") != wantURN || r.Header.Get("X-Tether-Session-Id") != "session" {
+						t.Error("Ops signed caller binding missing or crossed views")
+					}
+				} else if r.Header.Get("X-Tether-Agent-Urn") != "" || r.Header.Get("X-Tether-Session-Id") != "" {
+					t.Error("caller headers on service-only request")
+				}
 				observed = append(observed, r.Header.Get(authority.RunTokenHeader))
 				mu.Unlock()
 				leafHandler.ServeHTTP(w, r)
@@ -120,11 +132,12 @@ func TestVerifiedRunTokenEndToEnd(t *testing.T) {
 				}
 				a := authority.Admission{SchemaVersion: 1, Principal: authority.Principal{Verified: true, ID: "principal", Kind: "session", SessionID: "session"}, Policy: (gateway.SessionPolicy{SessionID: "session", Servers: []string{"other"}}).Seal(), Fingerprint: "legacy", MachineAccess: "read-only", Selection: gateway.Selection{Mode: gateway.Flat}}
 				if run != "" {
-					a.Run = &authority.Run{Session: "session", RunID: "execution", JTI: "nonce", Expires: time.Now().Add(time.Hour).Unix()}
+					a.Run = &authority.Run{URN: "msg://session/local/session", Session: "session", RunID: "execution", JTI: "nonce", Expires: time.Now().Add(time.Hour).Unix()}
 					a.Fingerprint = "verified-first"
 					if run == otherSigned {
 						a.Fingerprint = "verified-second"
 						a.Run.JTI = "nonce-second"
+						a.Run.URN = "msg://agent/test/second"
 					}
 				}
 				_ = json.NewEncoder(w).Encode(a)
