@@ -58,6 +58,9 @@ func New(entries []config.MCPServerEntry, protected []string) (*Runtime, error) 
 		if _, ok := r.known[e.ID]; ok {
 			return nil, fmt.Errorf("duplicate upstream id")
 		}
+		if e.ForwardRunToken && e.Transport != "http" && e.Transport != "sse" {
+			return nil, fmt.Errorf("forward_run_token requires HTTP/SSE")
+		}
 		if e.IsEnabled() && e.Transport == "stdio" && len(paths) == 0 {
 			return nil, fmt.Errorf("stdio upstreams require protected control-plane directories")
 		}
@@ -91,7 +94,7 @@ func New(entries []config.MCPServerEntry, protected []string) (*Runtime, error) 
 			if e.Transport == "sse" {
 				base = &sseLifetimeTransport{base: base}
 			}
-			return &http.Client{Transport: &originTransport{base: base, origin: u, headers: headers, forwardAttribution: e.ProxyServiceTokenFile != ""}, Timeout: time.Duration(seconds) * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+			return &http.Client{Transport: &originTransport{base: base, origin: u, headers: headers, forwardAttribution: e.ProxyServiceTokenFile != "", forwardRunToken: e.ForwardRunToken}, Timeout: time.Duration(seconds) * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 		}, nil
 	}
 	r.pool.SetToolRefreshHandler(func(ToolRefreshResult) {
@@ -212,6 +215,7 @@ func (r *Runtime) Call(ctx context.Context, name string, args, meta map[string]a
 		r.pool.Retry(entry.ServerID)
 		return nil, err
 	}
+	runToken := authority.VerifiedRunToken(ctx)
 	result, err := entry.Client.CallTool(ctx, &mcp.CallToolParams{Name: entry.UpstreamName, Arguments: args, Meta: mcp.Meta(meta)})
 	if err != nil {
 		scrubbed := err
@@ -221,9 +225,13 @@ func (r *Runtime) Call(ctx context.Context, name string, args, meta map[string]a
 				break
 			}
 		}
-		return nil, &redactedError{text: proxyRedactionSet(r.pool.entries).Redact("upstream call failed; execution outcome may be unknown; request was not replayed: " + scrubbed.Error()), err: err}
+		text := scrubbed.Error()
+		if runToken != "" {
+			text = strings.ReplaceAll(text, runToken, "[redacted]")
+		}
+		return nil, &redactedError{text: proxyRedactionSet(r.pool.entries).Redact("upstream call failed; execution outcome may be unknown; request was not replayed: " + text), err: err}
 	}
-	return result, nil
+	return scrubServiceToolResult(result, runToken)
 }
 
 type originTransport struct {
@@ -231,6 +239,7 @@ type originTransport struct {
 	origin             *url.URL
 	headers            map[string]string
 	forwardAttribution bool
+	forwardRunToken    bool
 }
 
 func (t *originTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -240,12 +249,14 @@ func (t *originTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	out := req.Clone(req.Context())
 	for k := range out.Header {
 		low := strings.ToLower(k)
-		if low == "authorization" || strings.HasPrefix(low, "x-tether-") || strings.HasPrefix(low, "x-forwarded-") {
-			out.Header.Del(k)
+		if low == "authorization" || low == "x-run-token" || strings.HasPrefix(low, "x-tether-") || strings.HasPrefix(low, "x-forwarded-") {
+			delete(out.Header, k)
 		}
 	}
 	for k, v := range t.headers {
-		out.Header.Set(k, v)
+		if !strings.EqualFold(k, authority.RunTokenHeader) {
+			out.Header.Set(k, v)
+		}
 	}
 	call, _ := req.Context().Value(forwardedToolCallKey{}).(bool)
 	if a, ok := authority.FromContext(req.Context()); ok && call && t.forwardAttribution && req.Method == http.MethodPost {
@@ -253,6 +264,17 @@ func (t *originTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			if v != "" {
 				out.Header.Set(k, v)
 			}
+		}
+	}
+	if call && t.forwardRunToken && req.Method == http.MethodPost {
+		run := authority.VerifiedRun(req.Context())
+		if token := authority.VerifiedRunToken(req.Context()); token != "" && run.URN != "" && run.Session != "" {
+			out.Header.Set(authority.RunTokenHeader, token)
+			// Bind token-bearing headers to signed claims, independently of optional
+			// observation attribution. Session-only callers may have no AgentURN.
+			out.Header.Set("X-Tether-Agent-Urn", run.URN)
+			out.Header.Set("X-Tether-Session-Id", run.Session)
+			out.Header.Set("X-Forwarded-User-Id", "session:"+run.Session)
 		}
 	}
 	return t.base.RoundTrip(out)
@@ -271,7 +293,7 @@ func proxyRedactionSet(entries []config.MCPServerEntry) *redact.Set {
 	return r
 }
 func scrubServiceToolResult(result *mcp.CallToolResult, secret string) (*mcp.CallToolResult, error) {
-	if secret == "" {
+	if secret == "" || result == nil {
 		return result, nil
 	}
 	raw, err := json.Marshal(result)

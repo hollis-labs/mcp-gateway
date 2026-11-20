@@ -23,6 +23,7 @@ type MCPServerEntry struct {
 	Token                 string            `yaml:"token" json:"-"`
 	TokenFile             string            `yaml:"token_file" json:"-"`
 	ProxyServiceTokenFile string            `yaml:"proxy_service_token_file" json:"-"`
+	ForwardRunToken       bool              `yaml:"forward_run_token" json:"forward_run_token"`
 	AllowUnconfinedRemote bool              `yaml:"allow_unconfined_remote" json:"allow_unconfined_remote"`
 	Enabled               *bool             `yaml:"enabled" json:"enabled,omitempty"`
 	Tags                  []string          `yaml:"tags" json:"tags,omitempty"`

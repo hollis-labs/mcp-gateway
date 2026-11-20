@@ -26,7 +26,18 @@ type Principal struct {
 	SessionID string     `json:"session_id,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
+
+// Run contains the bindings returned by Tether after verifying the supplied token.
+type Run struct {
+	URN     string `json:"urn"`
+	Session string `json:"session"`
+	RunID   string `json:"run_id"`
+	JTI     string `json:"jti"`
+	Expires int64  `json:"exp"`
+}
+
 type Admission struct {
+	Run               *Run                       `json:"run,omitempty"`
 	SchemaVersion     int                        `json:"schema_version"`
 	Principal         Principal                  `json:"principal"`
 	Policy            gateway.SessionPolicy      `json:"policy"`
@@ -37,8 +48,10 @@ type Admission struct {
 	Fingerprint       string                     `json:"fingerprint"`
 }
 type Selectors struct {
-	Profile string `json:"profile,omitempty"`
-	Mode    string `json:"discovery_mode,omitempty"`
+	// RunToken is runtime-only and is never serialized into selectors or diagnostics.
+	RunToken string `json:"-"`
+	Profile  string `json:"profile,omitempty"`
+	Mode     string `json:"discovery_mode,omitempty"`
 }
 type Error struct {
 	Status int
@@ -82,6 +95,9 @@ func (c *Client) Admit(ctx context.Context, token string, s Selectors) (Admissio
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
+	if s.RunToken != "" {
+		req.Header.Set(RunTokenHeader, s.RunToken)
+	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return out, &Error{503, "identity_unavailable"}
@@ -117,12 +133,22 @@ func (c *Client) Admit(ctx context.Context, token string, s Selectors) (Admissio
 	if out.MachineAccess != "read-only" && out.MachineAccess != "read-write" {
 		return Admission{}, &Error{503, "invalid_authority_response"}
 	}
+	if s.RunToken != "" {
+		if out.Run == nil || out.Run.URN == "" || !safeRunHeader(out.Run.URN) || out.Run.Session == "" || !safeRunHeader(out.Run.Session) || out.Run.Session != out.Principal.SessionID || out.Run.RunID == "" || out.Run.JTI == "" || out.Run.Expires <= time.Now().Unix() {
+			return Admission{}, &Error{503, "invalid_authority_response"}
+		}
+		expiry := time.Unix(out.Run.Expires, 0)
+		if out.Principal.ExpiresAt == nil || expiry.Before(*out.Principal.ExpiresAt) {
+			out.Principal.ExpiresAt = &expiry
+		}
+	}
 	return out, nil
 }
 
 type bearerTransport struct {
-	base  http.RoundTripper
-	token func() string
+	base     http.RoundTripper
+	token    func() string
+	runToken string
 }
 
 func (t bearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -131,6 +157,10 @@ func (t bearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	r := req.Clone(req.Context())
 	r.Header.Set("Authorization", "Bearer "+t.token())
+	r.Header.Del(RunTokenHeader)
+	if t.runToken != "" {
+		r.Header.Set(RunTokenHeader, t.runToken)
+	}
 	return t.base.RoundTrip(r)
 }
 func (c *Client) Native(ctx context.Context, token func() string, s Selectors) (*mcp.ClientSession, error) {
@@ -143,6 +173,6 @@ func (c *Client) Native(ctx context.Context, token func() string, s Selectors) (
 		q.Set("discovery_mode", s.Mode)
 	}
 	u.RawQuery = q.Encode()
-	h := &http.Client{Transport: bearerTransport{c.HTTP.Transport, token}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	h := &http.Client{Transport: bearerTransport{c.HTTP.Transport, token, s.RunToken}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	return mcp.NewClient(&mcp.Implementation{Name: "mcp-gateway-native", Version: "1"}, nil).Connect(ctx, &mcp.StreamableClientTransport{Endpoint: u.String(), HTTPClient: h}, nil)
 }

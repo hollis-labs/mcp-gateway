@@ -19,6 +19,8 @@ mcp-gateway:
 
 `mcp-gateway mcp --addr unix:/absolute/path/gateway.sock --token-file /absolute/path/caller.key` forwards stdio to the service. It reads the caller credential once, starts no upstream itself, and never replays an uncertain tool call. Optional selectors are `--profile` and `--discovery-mode flat|search`.
 
+The stdio command reads `TETHER_RUN_TOKEN` once from its runtime environment and carries it separately as `X-Run-Token`. Direct HTTP clients must send the same header on every request. See [verified run-token forwarding](docs/run-tokens.md) for the opt-in upstream policy and Tether prerequisite.
+
 The gateway's own Substrate identity protects administration only. See [identity bootstrap](docs/identity-bootstrap.md) and [operations](docs/runbook.md).
 
 ## MCP surface
