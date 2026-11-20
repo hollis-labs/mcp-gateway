@@ -34,6 +34,10 @@ The app automatically adds its own configuration, database, identity, secrets an
 
 HTTP/SSE upstreams cannot be sandboxed locally; the inherited policy requires explicit `allow_unconfined_remote: true` for each one. Disabled/unavailable origins remain diagnostic states, never fabricated tools. Remote catalogs refresh every minute and reconnect without replaying uncertain tool calls. A configuration change requires a gateway restart; new Tether-granted origins absent from this runtime are reported `pending_restart`.
 
+## Run-token forwarding
+
+HTTP/SSE upstreams can opt in with `forward_run_token: true` (default false). This forwards only the calling tool request's freshly Tether-verified `X-Run-Token`; it does not substitute a service bearer or send a caller token during shared initialization, catalog refresh, ping, background streams or teardown. Stdio entries reject this HTTP-only option. See [the trust boundary and prerequisites](run-tokens.md), including the Ops handoff prerequisite.
+
 ## Metadata and deferred cutover work
 
 Configure `registry_url` and `registry_token_file` together for live metadata. The client reads `/v1/snapshot`, pages at Registry's supported maximum, validates the envelope and boundary, and atomically replaces its cache. Missing/outdated classifications do not invent tool safety or approval. Approval orchestration remains outside this slice; no new approval authority is introduced.

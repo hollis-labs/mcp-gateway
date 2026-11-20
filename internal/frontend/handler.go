@@ -220,6 +220,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid_mcp_selectors")
 		return
 	}
+	s.RunToken, err = authority.ReadRunToken(r.Header)
+	if err != nil {
+		fail(w, 401, "unauthorized")
+		return
+	}
 	a, err := h.opts.Authority.Admit(r.Context(), t, s)
 	if err != nil {
 		authorityFail(w, err)
@@ -554,6 +559,12 @@ func (v *view) middleware(next mcp.MethodHandler) mcp.MethodHandler {
 		if a.Fingerprint != v.admission.Fingerprint {
 			return nil, fmt.Errorf("MCP authority changed")
 		}
+		if v.selectors.RunToken != "" {
+			if a.Run == nil {
+				return nil, fmt.Errorf("run verification unavailable")
+			}
+			ctx = authority.WithVerifiedRunToken(ctx, v.selectors.RunToken)
+		}
 		ctx, cancel := context.WithCancel(ctx)
 		stop := context.AfterFunc(v.ctx, cancel)
 		defer func() { stop(); cancel() }()
@@ -630,7 +641,7 @@ func (v *view) dispatch(ctx context.Context, name string, args, meta map[string]
 	clean := map[string]any{}
 	for k, value := range meta {
 		l := strings.ToLower(k)
-		if strings.HasPrefix(k, "io.modelcontextprotocol/") || strings.HasPrefix(l, "x-tether-") || strings.HasPrefix(l, "x-forwarded-") || strings.HasPrefix(l, "tether.") || l == "mcp_gateway.correlation" || strings.HasPrefix(l, "mcp_gateway.caller") {
+		if strings.HasPrefix(k, "io.modelcontextprotocol/") || strings.HasPrefix(l, "x-tether-") || strings.HasPrefix(l, "x-forwarded-") || l == "x-run-token" || strings.HasPrefix(l, "tether.") || l == "mcp_gateway.correlation" || strings.HasPrefix(l, "mcp_gateway.caller") {
 			continue
 		}
 		clean[k] = value

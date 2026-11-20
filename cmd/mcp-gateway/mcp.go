@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/hollis-labs/mcp-gateway/internal/client"
 	"github.com/hollis-labs/mcp-gateway/internal/forward"
@@ -19,7 +20,7 @@ func mcpCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		opts := client.MCPOptions{ClientLabel: label}
+		opts := client.MCPOptions{ClientLabel: label, RunToken: os.Getenv("TETHER_RUN_TOKEN")}
 		if cmd.Flags().Changed("profile") {
 			opts.Profile = &profile
 		}
