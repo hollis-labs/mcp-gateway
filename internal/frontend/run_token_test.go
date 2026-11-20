@@ -1,8 +1,10 @@
 package frontend
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -53,6 +55,7 @@ func TestVerifiedRunTokenEndToEnd(t *testing.T) {
 		opt := tc.opt
 		t.Run(tc.transport+map[bool]string{true: " opted in", false: " default off"}[opt], func(t *testing.T) {
 			const signed = "synthetic-run-secret"
+			const otherSigned = "synthetic-run-other"
 			var mu sync.Mutex
 			var observed []string
 			leaf := echoServer("other_echo")
@@ -68,6 +71,27 @@ func TestVerifiedRunTokenEndToEnd(t *testing.T) {
 				leafHandler = mcp.NewSSEHandler(func(*http.Request) *mcp.Server { return leaf }, nil)
 			}
 			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodPost {
+					raw, readErr := io.ReadAll(r.Body)
+					if readErr != nil {
+						t.Error(readErr)
+					}
+					r.Body = io.NopCloser(bytes.NewReader(raw))
+					var rpc struct {
+						Method string
+						Params struct{ Arguments struct{ Caller string } }
+					}
+					_ = json.Unmarshal(raw, &rpc)
+					if rpc.Method == "tools/call" && rpc.Params.Arguments.Caller != "" {
+						want := map[string]string{"first": signed, "second": otherSigned}[rpc.Params.Arguments.Caller]
+						if !opt {
+							want = ""
+						}
+						if r.Header.Get(authority.RunTokenHeader) != want {
+							t.Error("concurrent caller token crossed views")
+						}
+					}
+				}
 				mu.Lock()
 				observed = append(observed, r.Header.Get(authority.RunTokenHeader))
 				mu.Unlock()
@@ -86,7 +110,7 @@ func TestVerifiedRunTokenEndToEnd(t *testing.T) {
 				mu.Lock()
 				deny := revoked
 				mu.Unlock()
-				if r.Header.Get("Authorization") != "Bearer caller-token" || run != "" && (run != signed || deny) {
+				if r.Header.Get("Authorization") != "Bearer caller-token" || run != "" && ((run != signed && run != otherSigned) || deny) {
 					w.WriteHeader(401)
 					return
 				}
@@ -97,7 +121,11 @@ func TestVerifiedRunTokenEndToEnd(t *testing.T) {
 				a := authority.Admission{SchemaVersion: 1, Principal: authority.Principal{Verified: true, ID: "principal", Kind: "session", SessionID: "session"}, Policy: (gateway.SessionPolicy{SessionID: "session", Servers: []string{"other"}}).Seal(), Fingerprint: "legacy", MachineAccess: "read-only", Selection: gateway.Selection{Mode: gateway.Flat}}
 				if run != "" {
 					a.Run = &authority.Run{Session: "session", RunID: "execution", JTI: "nonce", Expires: time.Now().Add(time.Hour).Unix()}
-					a.Fingerprint = "verified-run"
+					a.Fingerprint = "verified-first"
+					if run == otherSigned {
+						a.Fingerprint = "verified-second"
+						a.Run.JTI = "nonce-second"
+					}
 				}
 				_ = json.NewEncoder(w).Encode(a)
 			}))
@@ -152,6 +180,31 @@ func TestVerifiedRunTokenEndToEnd(t *testing.T) {
 			if found != opt {
 				t.Error("wrong opt-in behavior on actual HTTP call")
 			}
+			observed = nil
+			mu.Unlock()
+			second, err := dial(otherSigned)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var calls sync.WaitGroup
+			for _, caller := range []struct {
+				session *mcp.ClientSession
+				label   string
+			}{{sess, "first"}, {second, "second"}} {
+				calls.Go(func() {
+					for range 10 {
+						_, callErr := caller.session.CallTool(context.Background(), &mcp.CallToolParams{Name: "other_echo", Arguments: map[string]any{"caller": caller.label}})
+						if callErr != nil {
+							t.Error(callErr)
+							return
+						}
+					}
+				})
+			}
+			calls.Wait()
+			_ = second.Close()
+			// Discard concurrent observations before checking the subsequent legacy view.
+			mu.Lock()
 			observed = nil
 			mu.Unlock()
 			tampered, err := dial(signed)

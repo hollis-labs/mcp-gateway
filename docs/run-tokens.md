@@ -14,7 +14,7 @@ Only operator-owned HTTP/SSE entries can select `forward_run_token: true`; the d
 
 After fresh admission, the token enters a private request-context value. Only a forwarded tools/call POST to that entry's configured HTTP origin receives `X-Run-Token`. Shared initialization, pings, tools/list/catalog refresh, SSE GET streams and DELETE teardown receive none. The shared upstream pool never stores a caller token. Incoming/static run-token headers are stripped before the verified value is applied; cross-origin requests and redirects are refused. MCP metadata cannot supply the token. Upstream results and returned call errors have exact token echoes scrubbed before paging or returning them; tokens are excluded from attribution and telemetry.
 
-Ops adoption must separately follow [`ops/docs/cerberus-handoff.md`](https://github.com/hollis-labs/ops/blob/main/docs/cerberus-handoff.md). Both Ops gateway entries must remain disabled until that handoff's prerequisites, including this forwarding capability, are satisfied and an authorized configuration/deployment change is performed. Landing this code alone does not activate those entries or deploy/restart the gateway.
+Ops adoption must separately follow [`ops/docs/cerberus-handoff.md`](https://github.com/hollis-labs/shared-services/blob/main/ops/docs/cerberus-handoff.md). Both Ops gateway entries must remain disabled until that handoff's prerequisites, including this forwarding capability, are satisfied and an authorized configuration/deployment change is performed. Landing this code alone does not activate those entries or deploy/restart the gateway.
 
 ## Verification
 
