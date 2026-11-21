@@ -22,6 +22,7 @@ import (
 )
 
 type nativeRepro struct {
+	failConnect       atomic.Bool
 	afterInventory    func()
 	changeFingerprint atomic.Bool
 	changeRun         atomic.Bool
@@ -112,6 +113,10 @@ func newNativeRepro(t *testing.T, idle time.Duration, readOnly, idempotent bool)
 		}
 		if method == "initialize" {
 			f.connects.Add(1)
+			if f.failConnect.Load() {
+				http.Error(w, "temporarily unavailable", http.StatusServiceUnavailable)
+				return
+			}
 			if f.block.Load() {
 				f.started <- struct{}{}
 				select {
@@ -285,6 +290,14 @@ func TestNativeUncertainMutationNeverReplayed(t *testing.T) {
 	out, err := invokeNative(context.Background(), f.outer)
 	if err == nil && (out == nil || !out.IsError) {
 		t.Fatal("uncertain write reported success")
+	}
+	message := fmt.Sprint(err)
+	if out != nil {
+		raw, _ := json.Marshal(out)
+		message += string(raw)
+	}
+	if !strings.Contains(message, "uncertain") {
+		t.Fatal("lost mutation response did not report uncertain outcome")
 	}
 	if f.executions.Load() != 1 || f.connects.Load() != 2 {
 		t.Fatalf("write replayed or session not repaired: executions=%d connects=%d", f.executions.Load(), f.connects.Load())
@@ -613,5 +626,77 @@ func TestNativeReplacementRejectsChangedRunBinding(t *testing.T) {
 	}
 	if f.executions.Load() != 0 || f.connects.Load() != 1 {
 		t.Fatal("replacement used changed run authority")
+	}
+}
+
+func TestNativeFailedReplacementIsBoundedAndRecoverable(t *testing.T) {
+	f := newNativeRepro(t, 0, false, false)
+	id := f.outer.ID()
+	closeNative(t, f.native(t))
+	f.failConnect.Store(true)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	out, err := invokeNative(ctx, f.outer)
+	if err == nil && out != nil && !out.IsError {
+		t.Fatal("failed replacement reported success")
+	}
+	if ctx.Err() != nil {
+		t.Fatal("failed replacement did not return promptly")
+	}
+	if f.connects.Load() != 2 || f.executions.Load() != 0 {
+		t.Fatalf("replacement looped or dispatched: connects=%d executions=%d", f.connects.Load(), f.executions.Load())
+	}
+	f.failConnect.Store(false)
+	assertNativeOK(t, f.outer)
+	if f.outer.ID() != id || f.connects.Load() != 3 || f.executions.Load() != 1 {
+		t.Fatal("failed replacement poisoned future independent call")
+	}
+}
+func TestNativeRecoveryRemovesOldToolBindings(t *testing.T) {
+	f := newNativeRepro(t, 0, false, false)
+	oldID := f.native(t).session.ID()
+	// Force inventory replacement after the SDK transport has registered the
+	// original action handler in the outer server.
+	closeNative(t, f.native(t))
+	f.backend.RemoveTools("tether_action")
+	f.backend.AddTool(&mcp.Tool{Name: "tether_replacement", InputSchema: map[string]any{"type": "object"}}, func(context.Context, *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return result("new handler"), nil
+	})
+	list, err := f.outer.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, tool := range list.Tools {
+		if tool.Name == "tether_action" {
+			t.Fatal("removed tool still listed")
+		}
+		if tool.Name == "tether_replacement" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("replacement tool not listed")
+	}
+	out, err := invokeNative(context.Background(), f.outer)
+	if err == nil && out != nil && !out.IsError {
+		t.Fatal("removed tool handler still dispatched")
+	}
+	if f.executions.Load() != 0 {
+		t.Fatal("removed tool executed")
+	}
+	out, err = f.outer.CallTool(context.Background(), &mcp.CallToolParams{Name: "tether_replacement", Arguments: map[string]any{}})
+	if err != nil || out == nil || out.IsError {
+		t.Fatal("replacement tool handler not rebound")
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, e := range f.events {
+		raw, _ := json.Marshal(e)
+		for _, secret := range []string{oldID, "caller-token", "run-first", "session not found"} {
+			if strings.Contains(string(raw), secret) {
+				t.Fatal("lifecycle evidence contained native ID, raw error or credentials")
+			}
+		}
 	}
 }
