@@ -22,24 +22,27 @@ import (
 )
 
 type nativeRepro struct {
-	release         chan struct{}
-	afterDrop       func()
-	events          []Event
-	businessError   atomic.Bool
-	rejectAfterDrop atomic.Bool
-	h               *Handler
-	backend         *mcp.Server
-	outer           *mcp.ClientSession
-	endpoint        string
-	connects        atomic.Int64
-	executions      atomic.Int64
-	drop            atomic.Bool
-	dropEvery       atomic.Bool
-	reject          atomic.Bool
-	block           atomic.Bool
-	started         chan struct{}
-	mu              sync.Mutex
-	sessions        map[string]string
+	afterInventory    func()
+	changeFingerprint atomic.Bool
+	changeRun         atomic.Bool
+	release           chan struct{}
+	afterDrop         func()
+	events            []Event
+	businessError     atomic.Bool
+	rejectAfterDrop   atomic.Bool
+	h                 *Handler
+	backend           *mcp.Server
+	outer             *mcp.ClientSession
+	endpoint          string
+	connects          atomic.Int64
+	executions        atomic.Int64
+	drop              atomic.Bool
+	dropEvery         atomic.Bool
+	reject            atomic.Bool
+	block             atomic.Bool
+	started           chan struct{}
+	mu                sync.Mutex
+	sessions          map[string]string
 }
 
 // This exercises the real authority.Client.Native HTTP transport, admission
@@ -57,6 +60,7 @@ func newNativeRepro(t *testing.T, idle time.Duration, readOnly, idempotent bool)
 	f.backend.AddResource(&mcp.Resource{URI: "fixture:///old", Name: "old"}, func(context.Context, *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 		return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: "fixture:///old", Text: "old"}}}, nil
 	})
+	runExpiry := time.Now().Add(time.Hour).Unix()
 	sdk := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return f.backend }, &mcp.StreamableHTTPOptions{SessionTimeout: idle, JSONResponse: true})
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(r.URL.Path, "/admit") && !strings.HasSuffix(r.URL.Path, "/native") {
@@ -81,7 +85,13 @@ func newNativeRepro(t *testing.T, idle time.Duration, readOnly, idempotent bool)
 			if selectors.Profile != "fixture" || selectors.Mode != "flat" {
 				t.Error("selectors lost")
 			}
-			a := authority.Admission{SchemaVersion: 1, Principal: authority.Principal{Verified: true, ID: "principal", Kind: "session", SessionID: "session"}, Policy: (gateway.SessionPolicy{SessionID: "session", Servers: []string{}}).Seal(), MachineAccess: "read-only", Selection: gateway.Selection{Mode: gateway.Flat}, Fingerprint: run, Run: &authority.Run{URN: "msg://agent/test/" + run, Session: "session", RunID: run, JTI: run, Expires: time.Now().Add(time.Hour).Unix()}}
+			a := authority.Admission{SchemaVersion: 1, Principal: authority.Principal{Verified: true, ID: "principal", Kind: "session", SessionID: "session"}, Policy: (gateway.SessionPolicy{SessionID: "session", Servers: []string{}}).Seal(), MachineAccess: "read-only", Selection: gateway.Selection{Mode: gateway.Flat}, Fingerprint: run, Run: &authority.Run{URN: "msg://agent/test/" + run, Session: "session", RunID: run, JTI: run, Expires: runExpiry}}
+			if f.changeFingerprint.Load() {
+				a.Fingerprint = "changed"
+			}
+			if f.changeRun.Load() {
+				a.Run.JTI = "changed"
+			}
 			_ = json.NewEncoder(w).Encode(a)
 			return
 		}
@@ -96,6 +106,9 @@ func newNativeRepro(t *testing.T, idle time.Duration, readOnly, idempotent bool)
 			var rpc struct{ Method string }
 			_ = json.Unmarshal(raw, &rpc)
 			method = rpc.Method
+		}
+		if method == "resources/list" && f.connects.Load() > 1 && f.afterInventory != nil {
+			f.afterInventory()
 		}
 		if method == "initialize" {
 			f.connects.Add(1)
@@ -561,5 +574,44 @@ func TestNativeRecoveryWithoutResources(t *testing.T) {
 	out, err := s.CallTool(context.Background(), &mcp.CallToolParams{Name: "tether_echo", Arguments: map[string]any{}})
 	if err != nil || out == nil || out.IsError {
 		t.Fatalf("tool-only native recovery failed: %v %+v", err, out)
+	}
+}
+
+func TestNativeRetryFreshAdmission(t *testing.T) {
+	for _, kind := range []string{"revoked", "fingerprint", "run binding"} {
+		t.Run(kind, func(t *testing.T) {
+			f := newNativeRepro(t, 0, true, true)
+			f.afterInventory = func() {
+				switch kind {
+				case "revoked":
+					f.reject.Store(true)
+				case "fingerprint":
+					f.changeFingerprint.Store(true)
+				case "run binding":
+					f.changeRun.Store(true)
+				}
+			}
+			f.drop.Store(true)
+			out, err := invokeNative(context.Background(), f.outer)
+			if err == nil && out != nil && !out.IsError {
+				t.Fatal("retry accepted changed authority")
+			}
+			if f.executions.Load() != 1 || f.connects.Load() != 2 {
+				t.Fatalf("retry executed with changed authority: executions=%d connects=%d", f.executions.Load(), f.connects.Load())
+			}
+		})
+	}
+}
+
+func TestNativeReplacementRejectsChangedRunBinding(t *testing.T) {
+	f := newNativeRepro(t, 0, false, false)
+	closeNative(t, f.native(t))
+	f.changeRun.Store(true)
+	out, err := invokeNative(context.Background(), f.outer)
+	if err == nil && out != nil && !out.IsError {
+		t.Fatal("replacement accepted changed run binding")
+	}
+	if f.executions.Load() != 0 || f.connects.Load() != 1 {
+		t.Fatal("replacement used changed run authority")
 	}
 }

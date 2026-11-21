@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hollis-labs/mcp-gateway/internal/authority"
+
 	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -117,12 +119,10 @@ func (v *view) replaceNative(ctx context.Context, old *nativeSession) (resultErr
 	// Native's transport obtains the latest bearer from this same view, and the
 	// immutable selectors carry its original run token. Recheck admission before
 	// connecting, even when the triggering operation already passed middleware.
-	a, err := v.h.opts.Authority.Admit(ctx, v.bearer(), v.selectors)
+	var err error
+	ctx, err = v.admitNative(ctx)
 	if err != nil {
 		return err
-	}
-	if a.Fingerprint != v.admission.Fingerprint || (v.selectors.RunToken != "" && a.Run == nil) {
-		return fmt.Errorf("MCP authority changed")
 	}
 	s, err := v.h.opts.Authority.Native(ctx, v.bearer, v.selectors)
 	if err != nil {
@@ -210,10 +210,37 @@ func (v *view) callNative(ctx context.Context, tool *mcp.Tool, params *mcp.CallT
 	if resolveErr != nil || target.Origin != "tether" || !retryableNativeTool(target.Tool) {
 		return nil, fmt.Errorf("native tool changed during recovery; operation was not retried")
 	}
+	ctx, err = v.admitNative(ctx)
+	if err != nil {
+		return nil, err
+	}
 	out, err = replacement.session.CallTool(ctx, params)
 	v.invalidateNative(replacement, err)
 	return out, err
 }
+
+// Admission is never inferred from a cached generation. In particular, a
+// waiter may join a replacement admitted on behalf of another concurrent
+// operation, so replay requires its own fresh check and verified run context.
+func (v *view) admitNative(ctx context.Context) (context.Context, error) {
+	a, err := v.h.opts.Authority.Admit(ctx, v.bearer(), v.selectors)
+	if err != nil {
+		return ctx, err
+	}
+	if a.Fingerprint != v.admission.Fingerprint || a.Principal.ID != v.admission.Principal.ID || a.Principal.SessionID != v.admission.Principal.SessionID {
+		return ctx, fmt.Errorf("MCP authority changed")
+	}
+	if v.selectors.RunToken != "" {
+		prior := v.admission.Run
+		run := a.Run
+		if prior == nil || run == nil || *run != *prior || run.Expires <= time.Now().Unix() {
+			return ctx, fmt.Errorf("MCP run authority changed")
+		}
+		ctx = authority.WithVerifiedRunToken(ctx, v.selectors.RunToken, *run)
+	}
+	return ctx, nil
+}
+
 func retryableNativeTool(tool *mcp.Tool) bool {
 	a := tool.Annotations
 	return a != nil && a.ReadOnlyHint && a.IdempotentHint && (a.DestructiveHint == nil || !*a.DestructiveHint)
@@ -236,6 +263,10 @@ func (v *view) bindResourcesLocked(resources []*mcp.Resource) {
 				return out, err
 			}
 			n, err = v.ensureNative(ctx)
+			if err != nil {
+				return nil, err
+			}
+			ctx, err = v.admitNative(ctx)
 			if err != nil {
 				return nil, err
 			}
