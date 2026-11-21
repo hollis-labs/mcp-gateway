@@ -27,6 +27,8 @@ type Authority interface {
 	Native(context.Context, func() string, authority.Selectors) (*mcp.ClientSession, error)
 }
 type Event struct {
+	Lifecycle      string                  `json:"lifecycle,omitempty"`
+	Generation     uint64                  `json:"generation,omitempty"`
 	At             time.Time               `json:"at"`
 	Principal      string                  `json:"principal"`
 	Session        string                  `json:"session,omitempty"`
@@ -63,31 +65,36 @@ type Handler struct {
 	closeOnce sync.Once
 }
 type view struct {
-	h              *Handler
-	server         *mcp.Server
-	native         *mcp.ClientSession
-	service        *gateway.Service
-	pager          *gateway.ResultPager
-	admission      authority.Admission
-	selectors      authority.Selectors
-	ids            []string
-	mu             sync.Mutex
-	token          string
-	expiry         *time.Time
-	expiryTimer    *time.Timer
-	last           time.Time
-	active         int
-	closed         bool
-	ready          bool
-	ctx            context.Context
-	cancel         context.CancelFunc
-	unsubscribe    func()
-	catalogMu      sync.Mutex
-	registered     []string
-	nativeTools    []*mcp.Tool
-	definitions    []*mcp.Tool
-	infrastructure []*mcp.Tool
-	catalogDigest  [32]byte
+	h                *Handler
+	server           *mcp.Server
+	nativeMu         sync.Mutex
+	native           *nativeSession
+	nativeFlight     *nativeFlight
+	nativeGeneration uint64
+	inventoryMu      sync.RWMutex
+	nativeResources  []string
+	service          *gateway.Service
+	pager            *gateway.ResultPager
+	admission        authority.Admission
+	selectors        authority.Selectors
+	ids              []string
+	mu               sync.Mutex
+	token            string
+	expiry           *time.Time
+	expiryTimer      *time.Timer
+	last             time.Time
+	active           int
+	closed           bool
+	ready            bool
+	ctx              context.Context
+	cancel           context.CancelFunc
+	unsubscribe      func()
+	catalogMu        sync.Mutex
+	registered       []string
+	nativeTools      []*mcp.Tool
+	definitions      []*mcp.Tool
+	infrastructure   []*mcp.Tool
+	catalogDigest    [32]byte
 }
 type viewKey struct{}
 
@@ -296,7 +303,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rctx, cancel := context.WithCancel(r.Context())
 	stop := context.AfterFunc(v.ctx, cancel)
 	defer func() { stop(); cancel() }()
-	response := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+	response := &statusWriter{ResponseWriter: w, status: http.StatusOK, onHeader: func(status int) {
+		// Publish before initialize's response can be flushed: the client may
+		// immediately send initialized or open its standalone stream.
+		assigned := w.Header().Get("Mcp-Session-Id")
+		if assigned != "" && status < 400 {
+			h.mu.Lock()
+			if h.views[v] {
+				h.sessions[assigned] = v
+			}
+			h.mu.Unlock()
+		}
+	}}
 	h.sdk.ServeHTTP(response, r.WithContext(context.WithValue(rctx, viewKey{}, v)))
 	assigned := w.Header().Get("Mcp-Session-Id")
 	if assigned != "" {
@@ -313,15 +331,35 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type statusWriter struct {
 	http.ResponseWriter
-	status int
+	status      int
+	wroteHeader bool
+	onHeader    func(int)
 }
 
 func (w *statusWriter) WriteHeader(status int) {
+	if w.wroteHeader {
+		return
+	}
+	w.wroteHeader = true
 	w.status = status
+	if w.onHeader != nil {
+		w.onHeader(status)
+	}
 	w.ResponseWriter.WriteHeader(status)
 }
 func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
-func (w *statusWriter) Flush()                      { _ = http.NewResponseController(w.ResponseWriter).Flush() }
+func (w *statusWriter) Write(p []byte) (int, error) {
+	if !w.wroteHeader {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(p)
+}
+func (w *statusWriter) Flush() {
+	if !w.wroteHeader {
+		w.WriteHeader(http.StatusOK)
+	}
+	_ = http.NewResponseController(w.ResponseWriter).Flush()
+}
 
 func (v *view) bearer() string { v.mu.Lock(); defer v.mu.Unlock(); return v.token }
 func (v *view) adopt(token string, expiry *time.Time) {
@@ -398,11 +436,12 @@ func (h *Handler) prepare(ctx context.Context, t string, s authority.Selectors, 
 			return nil, err
 		}
 	}
-	v.native, err = h.opts.Authority.Native(ctx, v.bearer, s)
+	native, err := h.opts.Authority.Native(ctx, v.bearer, s)
 	if err != nil {
 		return nil, err
 	}
-	for tool, err := range v.native.Tools(ctx, nil) {
+	v.native = v.trackNative(native)
+	for tool, err := range native.Tools(ctx, nil) {
 		if err != nil {
 			return nil, err
 		}
@@ -421,15 +460,15 @@ func (h *Handler) prepare(ctx context.Context, t string, s authority.Selectors, 
 	v.refreshToolsLocked()
 	v.server.AddReceivingMiddleware(v.middleware)
 	v.unsubscribe = h.opts.Runtime.Subscribe(v.refreshTools)
-	// Native resources remain Tether-owned and are checked by its backend on every read.
-	for resource, err := range v.native.Resources(ctx, nil) {
+	// Native resources remain Tether-owned and are checked on every read.
+	var resources []*mcp.Resource
+	for resource, err := range native.Resources(ctx, nil) {
 		if err != nil {
 			break
 		}
-		v.server.AddResource(resource, func(ctx context.Context, r *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-			return v.native.ReadResource(ctx, r.Params)
-		})
+		resources = append(resources, resource)
 	}
+	v.bindResourcesLocked(resources)
 	v.mu.Lock()
 	v.ready = true
 	v.mu.Unlock()
@@ -438,6 +477,8 @@ func (h *Handler) prepare(ctx context.Context, t string, s authority.Selectors, 
 }
 func (v *view) snapshot() gateway.Snapshot {
 	s := v.h.opts.Runtime.Snapshot(v.ids)
+	v.inventoryMu.RLock()
+	defer v.inventoryMu.RUnlock()
 	for _, t := range v.nativeTools {
 		s.Entries = append(s.Entries, gateway.Entry{Tool: t, Origin: "tether"})
 	}
@@ -494,8 +535,11 @@ func (h *Handler) removeView(v *view, expiredOnly bool) {
 			_ = session.Close()
 		}
 	}
-	if v.native != nil {
-		_ = v.native.Close()
+	v.nativeMu.Lock()
+	native := v.native
+	v.nativeMu.Unlock()
+	if native != nil {
+		_ = native.session.Close()
 	}
 }
 
@@ -568,6 +612,9 @@ func (v *view) middleware(next mcp.MethodHandler) mcp.MethodHandler {
 		ctx, cancel := context.WithCancel(ctx)
 		stop := context.AfterFunc(v.ctx, cancel)
 		defer func() { stop(); cancel() }()
+		if _, err := v.ensureNative(ctx); err != nil {
+			return nil, err
+		}
 		if method == "tools/list" {
 			v.refreshTools()
 			r, ok := req.(*mcp.ListToolsRequest)
@@ -662,7 +709,7 @@ func (v *view) dispatch(ctx context.Context, name string, args, meta map[string]
 	start := time.Now()
 	var out *mcp.CallToolResult
 	if e.Origin == "tether" {
-		out, err = v.native.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: args, Meta: mcp.Meta(clean)})
+		out, err = v.callNative(ctx, e.Tool, &mcp.CallToolParams{Name: name, Arguments: args, Meta: mcp.Meta(clean)})
 	} else {
 		out, err = v.h.opts.Runtime.Call(ctx, name, args, clean)
 	}
