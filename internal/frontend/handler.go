@@ -612,8 +612,13 @@ func (v *view) middleware(next mcp.MethodHandler) mcp.MethodHandler {
 		ctx, cancel := context.WithCancel(ctx)
 		stop := context.AfterFunc(v.ctx, cancel)
 		defer func() { stop(); cancel() }()
-		if _, err := v.ensureNative(ctx); err != nil {
-			return nil, err
+		// Lifecycle notifications, cancellation and ping operate on the outer
+		// session. They must not initiate or wait for native recovery.
+		switch method {
+		case "tools/list", "tools/call", "resources/list", "resources/read":
+			if _, err := v.ensureNative(ctx); err != nil {
+				return nil, err
+			}
 		}
 		if method == "tools/list" {
 			v.refreshTools()

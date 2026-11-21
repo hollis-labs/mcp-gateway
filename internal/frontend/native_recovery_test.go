@@ -539,6 +539,12 @@ func TestNativeRecoveryWaiterCancellation(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("leader did not start")
 	}
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), time.Second)
+	if err := f.outer.Ping(pingCtx, nil); err != nil {
+		pingCancel()
+		t.Fatalf("outer ping waited for native recovery: %v", err)
+	}
+	pingCancel()
 	f.h.mu.Lock()
 	var v *view
 	for candidate := range f.h.views {
